@@ -151,6 +151,18 @@ The endpoint stamps `service`, `user_id`, and `start_time`, then hands the paylo
 - `output/*email.txt` lets you confirm what Gmail received.
 - Logs in the terminal include per-agent events thanks to `LoggingPlugin`.
 
+### 4. Run in ADK Web
+1. Export the same environment variables you use locally (`GRAFANA_HOST`, `GITHUB_TOKEN`, `GMAIL_CLIENT_ID`, etc.) so ADK Web can access external services.
+2. From the repo root, launch the web playground:
+   ```
+   adk web
+   ```
+3. In the browser, pick the `incident_copilot` app, then start a session with:
+   ```
+   {"start_time": "2025-11-16T15:00:00Z"}
+   ```
+   The web UI will stream each agent’s reasoning, tool calls, and outputs in real time.
+
 ## Testing & Quality
 - Run `pytest` to execute the focused regression tests (HTML formatter, failover sender, workflow helpers).
 - `tests/test_email_html_formatter.py` ensures section parsing renders correctly, preventing malformed executive briefs.
