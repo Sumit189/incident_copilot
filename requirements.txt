@@ -1,0 +1,11 @@
+click==8.3.0
+fastapi==0.121.2
+h11==0.16.0
+setuptools==80.9.0
+uvicorn==0.38.0
+wheel==0.45.1
+google-adk
+httpx
+python-dotenv
+google-auth
+google-api-python-client
