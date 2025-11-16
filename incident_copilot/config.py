@@ -50,10 +50,3 @@ WEBHOOK_USER_ID = os.getenv("WEBHOOK_USER_ID", "grafana_webhook")
 # Default: 3600 seconds (1 hour)
 # Example: If incident starts at 11:00 AM and LOOKUP_WINDOW_SECONDS=3600, query logs from 10:00 AM to 11:00 AM
 LOOKUP_WINDOW_SECONDS = int(os.getenv("LOOKUP_WINDOW_SECONDS", "3600"))
-
-# Agent Disable Configuration
-# Comma-separated list of agent names to disable
-# Example: DISABLED_AGENTS=CodeAnalyzerAgent,PRExecutorAgent
-DISABLED_AGENTS_STR = os.getenv("DISABLED_AGENTS", "")
-DISABLED_AGENTS = [agent.strip() for agent in DISABLED_AGENTS_STR.split(",") if agent.strip()] if DISABLED_AGENTS_STR else []
-

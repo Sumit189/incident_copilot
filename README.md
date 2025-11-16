@@ -97,7 +97,6 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
 | `ON_CALL_ENGINEERS` | JSON list of target emails (defaults to a single address) |
 | `SERVICE_NAME`, `WEBHOOK_USER_ID` | Labels used in detection + alerting |
 | `LOOKUP_WINDOW_SECONDS` | How far back to look around the incident timestamp |
-| `DISABLED_AGENTS` | Optional comma list to turn off risky workflows (e.g., `PRExecutorAgent`) |
 
 Create the file:
 
@@ -107,8 +106,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env  # if you keep templates
 ```
-
-> Reminder: never commit API keys or refresh tokens.
 
 ### Optional GitHub MCP setup
 The Code Analyzer spins up `@modelcontextprotocol/server-github` via `npx`. Install Node dependencies once:
