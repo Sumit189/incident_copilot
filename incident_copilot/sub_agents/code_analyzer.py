@@ -1,3 +1,6 @@
+import os
+import shutil
+from pathlib import Path
 from typing import Optional
 from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
@@ -9,6 +12,24 @@ from incident_copilot.config import GITHUB_TOKEN, GITHUB_REPO, RETRY_CONFIG
 from incident_copilot.github import get_owner_repo, get_owner_repo_source
 
 _github_mcp_toolset = None
+
+
+def _resolve_mcp_server_command() -> tuple[str, list[str]]:
+    """Locate an executable command for the GitHub MCP server."""
+    npx_path = shutil.which("npx")
+    if npx_path:
+        return npx_path, ["-y", "@modelcontextprotocol/server-github"]
+
+    repo_root = Path(__file__).resolve().parents[2].parent
+    local_server = repo_root / "node_modules" / ".bin" / "server-github"
+
+    if local_server.exists():
+        return str(local_server), []
+
+    raise FileNotFoundError(
+        "Could not find `npx` or `node_modules/.bin/server-github`. "
+        "Install Node.js and run `npm install` before enabling the GitHub MCP toolset."
+    )
 
 
 def _get_github_mcp_toolset() -> Optional[McpToolset]:
@@ -23,15 +44,14 @@ def _get_github_mcp_toolset() -> Optional[McpToolset]:
         return None
     
     try:
+        command, args = _resolve_mcp_server_command()
+
         _github_mcp_toolset = McpToolset(
             connection_params=StdioConnectionParams(
                 server_params=StdioServerParameters(
-                    command="npx",
-                    args=[
-                        "-y",
-                        "@modelcontextprotocol/server-github",
-                    ],
-                    env={"GITHUB_PERSONAL_ACCESS_TOKEN": GITHUB_TOKEN},
+                    command=command,
+                    args=args,
+                    env={"GITHUB_PERSONAL_ACCESS_TOKEN": GITHUB_TOKEN, **os.environ},
                 ),
                 timeout=30,
             ),

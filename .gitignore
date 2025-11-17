@@ -10,3 +10,4 @@ __pycache__/
 output/
 *.json
 .env
+node_modules/
