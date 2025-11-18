@@ -81,6 +81,20 @@ def send_incident_email(
     
     # Generate HTML version
     html_body = format_incident_email_html(body, pr_url, pr_number)
+    
+    from agents.config import SAVE_OUTPUT
+    if SAVE_OUTPUT:
+        import os
+        try:
+            os.makedirs("output", exist_ok=True)
+            timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+            filename = f"output/email_{timestamp}.txt"
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(f"Subject: {subject}\n\n{body}")
+            print(f"Saved email copy to {filename}")
+        except Exception as e:
+            print(f"Failed to save email copy: {e}")
+
     result = _send_email(
         to=to,
         subject=subject,

@@ -2,7 +2,7 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
-from tools.email_helper import send_incident_email_to_oncall
+from tools.incident_actions import publish_incident_report
 from agents.config import RETRY_CONFIG, MID_MODEL
 
 email_writer_agent = LlmAgent(
@@ -13,9 +13,9 @@ email_writer_agent = LlmAgent(
 Send the on-call engineers a concise incident briefing that covers the issue, confirmed RCA (if available), action plan, and PR status. This agent always sends an email, even when the guard decided to skip the investigation, so reference the available data candidly and note when there is no confirmed incident.
 
 Hard requirements (never violate these):
-- You MUST call send_incident_email_to_oncall(...) exactly once before the agent finishes. Do not produce a final response until this tool reports success.
-- If PR creation was skipped (e.g., no code changes needed), you MUST still send the email. In this case, pass pr_url=None and pr_number=None.
-- After send_incident_email_to_oncall returns, acknowledge success (e.g., "Email sent successfully to [...]").
+- You MUST call publish_incident_report(...) exactly once before the agent finishes. Do not produce a final response until this tool reports success.
+- If PR creation was skipped (e.g., no code changes needed), you MUST still publish the report. In this case, pass pr_url=None and pr_number=None.
+- After publish_incident_report returns, acknowledge success.
 
 Steps:
 1. Gather information from previous agents:
@@ -32,14 +32,25 @@ Steps:
    SOLUTION STATUS — quote or summarize the latest SolutionGeneratorAgent message and explicitly state if the issue remains unknown (include recommended mitigations even when confidence is low).
    ACTION PLAN — numbered immediate/short-term/long-term steps derived from mitigations/solutions.
    PULL REQUEST — include link + number + requested action only when pr_url exists; explicitly connect it to the Solution STATUS text (e.g., "Code changes for the validation fix are in PR ...").
-4. Call send_incident_email_to_oncall(subject=..., body=..., pr_url=<value or None>, pr_number=<value or None>) so the email is rendered in HTML and delivered to all on-call engineers.
-   - IMPORTANT: You MUST provide 'subject' and 'body' as strings.
-   - If PRCreatorAgent returned status="skipped" or no PR details, explicitly state in the body that no pull request was created (e.g., "No code changes required" or "Changes identical to main") and pass pr_url=None and pr_number=None.
-   - Do NOT pass empty strings for pr_url/pr_number if they don't exist; pass None (null).
-5. After the tool returns, respond with confirmation such as "Email sent successfully to on-call engineers".
+5. Call publish_incident_report with these EXACT arguments:
+   - 'email_subject': "[INCIDENT] <service> - <severity> - <status>"
+   - 'email_body': The full plain-text email body.
+   - 'incident_summary': Brief summary (or "" if empty).
+   - 'root_cause': RCA text (or "" if empty).
+   - 'mitigation_suggestions': Suggestions (or "" if empty).
+   - 'proposed_solution': Solution text (or "" if empty).
+   - 'pr_url': The PR URL string (e.g. "https://github.com/...") or null.
+   - 'pr_number': The PR number (e.g. "123") or null.
+
+   IMPORTANT:
+   - Do NOT omit arguments. Pass "" for empty strings and null for missing optional values.
+   - Ensure 'pr_number' is a string or integer, NOT the string "None".
+
+
+6. After the tool returns, respond with confirmation such as "Incident report published successfully".
 """,
     tools=[
-        FunctionTool(func=send_incident_email_to_oncall),
+        FunctionTool(func=publish_incident_report),
     ]
 )
 

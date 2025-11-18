@@ -145,7 +145,8 @@ async def run_workflow(
         "events_count": len(events),
     }
 
-    if os.getenv("SAVE_OUTPUT", "false").lower() in ("1", "true", "yes"):
+    from agents.config import SAVE_OUTPUT
+    if SAVE_OUTPUT:
     os.makedirs("output", exist_ok=True)
     fn = f"output/incident_{session.id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
     with open(fn, "w", encoding="utf-8") as f:

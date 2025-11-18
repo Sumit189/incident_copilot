@@ -32,7 +32,7 @@ Incident CoPilot is a production-ready multi-agent responder that turns noisy Gr
   2. `CodeAnalyzerAgent` (guarded) uses the GitHub MCP toolset to inspect repos only when the incident looks like a code regression.
   3. `RCAAgent` and `SuggestionAgent` run in parallel to speed up analysis.
   4. `SolutionGeneratorAgent` emits mitigations plus structured patch objects; `PRExecutorAgent` (branch => file => PR) consumes that patch.
-  5. `EmailWriterAgent` builds an executive briefing, calls Gmail through `send_incident_email`, and always runs so on-call engineers receive a summary even if the guard skipped the incident.
+  5. `EmailWriterAgent` builds an executive briefing, calls Gmail through `send_incident_email`, and triggers any configured `POST_PROCESS_URL` (e.g., webhook) in parallel. This ensures on-call engineers receive a summary and external systems are notified even if the guard skipped the incident.
 - Outputs land in `output/` as JSON + rendered emails for auditability.
 
 ```
@@ -49,7 +49,10 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
                                       EmailWriterAgent => Gmail + HTML formatter
                                                 │
                                                 ▼
-                                      Failover email + output artifacts
+                                      EmailWriterAgent => Gmail + HTML formatter
+                                                │
+                                                ▼
+                                      Failover email + Post-Process Action (Parallel) + output artifacts
 ```
 
 ![Incident CoPilot Agent Workflow](assets/agent.png)
@@ -63,7 +66,7 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
 | `RCAAgent` | Converts log-derived evidence into explicit hypotheses with confidence + affected components. Uses **Gemini 2.5 Flash Lite** for fast pattern matching. | Context-grounded reasoning only |
 | `SolutionGeneratorAgent` | Generates mitigations and structured `patch.files_to_modify` payloads the PR workflow consumes. Uses **Gemini 2.5 Pro** for precise code generation. | JSON contract enforcement |
 | `PRExecutorAgent` | Sequentially creates a branch, writes files, and opens a PR (skips gracefully if nothing to patch). Uses **Gemini 2.5 Flash Lite**. | GitHub REST API helpers, PR gate |
-| `EmailWriterAgent` | Crafts the human-facing incident brief, calls Gmail, and triggers HTML rendering even if the guard skipped the incident. Uses **Gemini 2.5 Flash**. | `get_on_call_engineers`, `send_incident_email` |
+| `EmailWriterAgent` | Crafts the human-facing incident brief, calls Gmail, and triggers post-process actions (webhooks) in parallel. Uses **Gemini 2.5 Flash**. | `get_on_call_engineers`, `publish_incident_report` |
 
 ### Persistent Trace Logging
 - The unified tracer plugin (`custom_plugins/event_tracer_plugin.py`) captures every agent callback in memory so predicates can reuse structured outputs, and—when Mongo credentials are supplied—also writes one MongoDB document per `invocation_id`.
@@ -120,6 +123,19 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
 - Access to Grafana Loki, GitHub, and Gmail APIs (service or test accounts)
 - Node.js 18+ (required for the GitHub MCP server; Cloud Run installs it automatically via `packages.txt`, but install locally if you run agents on your machine)
 
+### Telemetry Configuration
+The system now supports pluggable telemetry providers for both logs and metrics.
+
+**Logs:**
+- Default: `loki`
+- Env Var: `TELEMETRY_PROVIDER_LOGS=loki`
+- Requires: `GRAFANA_HOST`, `GRAFANA_BASICAUTH` (optional)
+
+**Metrics:**
+- Default: `prometheus`
+- Env Var: `TELEMETRY_PROVIDER_METRICS=prometheus`
+- Requires: `PROMETHEUS_HOST` (or falls back to `GRAFANA_HOST`), `PROMETHEUS_BASICAUTH` (optional)
+
 ### Environment Variables (.env example)
 
 | Variable | Purpose |
@@ -131,6 +147,10 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
 | `ON_CALL_ENGINEERS` | JSON list of target emails (defaults to a single address) |
 | `GEMINI_API_KEY` | API key for Gemini / Google Generative Language |
 | `WEBHOOK_USER_ID` | Label applied to webhook-triggered sessions |
+| `POST_PROCESS_URL` | Optional URL to trigger after the automated triage workflow (e.g., PagerDuty, Slack webhook). Receives incident JSON payload. |
+| `TELEMETRY_PROVIDER_LOGS` | Provider for logs (default: `loki`). Currently supports `loki`. |
+| `TELEMETRY_PROVIDER_METRICS` | Provider for metrics (default: `prometheus`). Currently supports `prometheus`. |
+| `PROMETHEUS_HOST` | Base URL for Prometheus (e.g., `http://prometheus:9090`). |
 | `LOOKUP_WINDOW_SECONDS` | Default lookup window (seconds) used when a request omits `lookup_window_seconds`; otherwise the webhook-provided value controls how far back to query logs. |
 | `SAVE_OUTPUT` | When set to `true`/`1`, incident JSON artifacts are written to `output/`; otherwise they are skipped. |
 
@@ -213,6 +233,10 @@ curl -X POST http://localhost:8000/webhook/trigger_agent \
 - `tests/test_email_html_formatter.py` ensures section parsing renders correctly, preventing malformed executive briefs.
 - `tests/test_email_helper_status.py` guarantees the email status cache behaves even when the LLM handles the tool call.
 - For integration testing, point `GRAFANA_HOST` to a staging Loki instance and replay recorded incidents; every run is deterministic for the same logs.
+- **Mock Prometheus:** Use `scripts/mock_prometheus.py` to simulate metrics without a live server.
+  - Run: `python3 scripts/mock_prometheus.py`
+  - Configure: `PROMETHEUS_HOST=http://localhost:9090`
+  - Presets: Set `MOCK_CPU=high`, `MOCK_RAM=mid`, or `MOCK_NETWORK=low` to test different scenarios.
 
 ## Deployment
 

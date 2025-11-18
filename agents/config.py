@@ -45,8 +45,18 @@ GIT_BASE_BRANCH = os.getenv("GIT_BASE_BRANCH", "main")
 
 # Service/App Name Configuration
 WEBHOOK_USER_ID = os.getenv("WEBHOOK_USER_ID", "grafana_webhook")
+POST_PROCESS_URL = os.getenv("POST_PROCESS_URL", "")
 
 # Incident Lookup Window Configuration
 # Default window (seconds) used when the webhook omits `lookup_window_seconds`.
 # Default: 900 seconds (15 minutes). Override via env if a longer window is needed.
 LOOKUP_WINDOW_SECONDS = int(os.getenv("LOOKUP_WINDOW_SECONDS", "900"))
+
+# Output Configuration
+SAVE_OUTPUT = os.getenv("SAVE_OUTPUT", "false").lower() in ("1", "true", "yes")
+
+# Telemetry Configuration
+TELEMETRY_PROVIDER_LOGS = os.getenv("TELEMETRY_PROVIDER_LOGS", "loki")
+TELEMETRY_PROVIDER_METRICS = os.getenv("TELEMETRY_PROVIDER_METRICS", "prometheus")
+PROMETHEUS_HOST = os.getenv("PROMETHEUS_HOST", "")
+PROMETHEUS_BASICAUTH = os.getenv("PROMETHEUS_BASICAUTH", "")
