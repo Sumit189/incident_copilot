@@ -37,7 +37,8 @@ class PrometheusProvider(TelemetryProvider):
         step: Optional[int] = 15
     ) -> List[Dict[str, Any]]:
         if not self.host:
-            raise ValueError("PROMETHEUS_HOST environment variable is not set")
+            print("Warning: PROMETHEUS_HOST not set. Skipping metric query.")
+            return []
 
         url = f"{self.host}/api/v1/query_range"
         headers = self._get_headers()
