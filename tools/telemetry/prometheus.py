@@ -12,10 +12,6 @@ class PrometheusProvider(TelemetryProvider):
     def __init__(self):
         self.host = os.getenv("PROMETHEUS_HOST", "").strip().rstrip("/")
         self.basic_auth = os.getenv("PROMETHEUS_BASICAUTH", "").strip()
-        
-        # Fallback to Grafana host if Prometheus host is not set (often same instance)
-        if not self.host and os.getenv("GRAFANA_HOST"):
-             self.host = os.getenv("GRAFANA_HOST", "").strip().rstrip("/")
 
     def _get_headers(self) -> dict:
         headers = {"Content-Type": "application/json"}
