@@ -2,14 +2,12 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
-from incident_copilot.github import create_pull_request
-from incident_copilot.config import RETRY_CONFIG
-from incident_copilot.tools import check_pr_workflow_gate
+from agents.github import create_pull_request
+from agents.config import RETRY_CONFIG
 
 
 def _create_pr_creator_agent():
     tools_list = [
-        FunctionTool(func=check_pr_workflow_gate),
         FunctionTool(func=create_pull_request),
     ]
 
@@ -21,11 +19,9 @@ def _create_pr_creator_agent():
 Create the pull request once the branch and file updates are ready.
 
 AVAILABLE TOOLS:
-- check_pr_workflow_gate: Returns whether PR workflow is currently allowed.
 - create_pull_request: Opens a pull request (and returns an existing one if GitHub reports it already exists).
 
 STEPS:
-0. Call check_pr_workflow_gate(). If allowed=false => return {"status": "skipped", "pr_url": null, "pr_number": null, "message": reason or "PR workflow blocked"}.
 1. Extract from conversation history:
    - patch, recommended_solution, mitigations from Solution Generator Agent output (JSON)
    - root_cause, most_likely from RCA Agent output (JSON)

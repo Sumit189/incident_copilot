@@ -2,14 +2,12 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
-from incident_copilot.github import create_or_update_file
-from incident_copilot.config import RETRY_CONFIG
-from incident_copilot.tools import check_pr_workflow_gate
+from agents.github import create_or_update_file
+from agents.config import RETRY_CONFIG
 
 
 def _create_file_updater_agent():
     tools_list = [
-        FunctionTool(func=check_pr_workflow_gate),
         FunctionTool(func=create_or_update_file),
     ]
 
@@ -21,11 +19,9 @@ def _create_file_updater_agent():
 Update all files in the patch.
 
 AVAILABLE TOOLS:
-- check_pr_workflow_gate: Returns whether PR workflow is currently allowed.
 - create_or_update_file: Create or update a repository file on the specified branch (handles encoding + commits).
 
 STEPS:
-0. Call check_pr_workflow_gate(). If allowed=false => return {"status": "skipped", "message": reason or "PR workflow blocked", "files_updated": 0}.
 1. Extract from conversation history (MANDATORY):
    - Branch Creator Agent output => branch_name (must be non-null)
    - Solution Generator Agent output => patch.files_to_modify array

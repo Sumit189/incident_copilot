@@ -2,10 +2,10 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
-from incident_copilot.config import RETRY_CONFIG
+from agents.config import RETRY_CONFIG, DEFAULT_MODEL
 
 suggestion_agent = LlmAgent(
-    model=Gemini(model="gemini-2.5-flash-lite", retry_options=RETRY_CONFIG),
+    model=Gemini(model=DEFAULT_MODEL, retry_options=RETRY_CONFIG),
     name="SuggestionAgent",
     description="Generate actionable remediation steps and fix suggestions based on RCA.",
     instruction="""
@@ -47,16 +47,13 @@ STEPS:
 
 RULES:
 - Be SPECIFIC: "Request quota increase from GCP Console" not "check logs"
-- Be ACTIONABLE: Provide executable steps
+- Be ACTIONABLE: Provide executable steps (e.g., "Run `kubectl scale deployment...`" or "Update env var `MAX_RETRIES` to 5")
 - Base on ACTUAL errors, not generic suggestions
 
 CRITICAL RULES:
-- DO NOT call analyze_logs - THIS TOOL DOES NOT EXIST
-- DO NOT call query_loki - THIS TOOL DOES NOT EXIST
-- DO NOT call get_error_rate - THIS TOOL DOES NOT EXIST
-- DO NOT call any tool that is not explicitly listed (there are none)
-- All data comes from conversation history (Incident Detection Agent, RCA Agent outputs)
-- If you try to call a tool that doesn't exist, the workflow will fail
+- DO NOT call any tools (none are provided).
+- All data comes from conversation history.
+- If you try to call a tool that doesn't exist, the workflow will fail.
 """,
     tools=[]
 )

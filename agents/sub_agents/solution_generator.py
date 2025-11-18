@@ -2,14 +2,14 @@ from google.adk.agents import LlmAgent
 from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
-from incident_copilot.config import RETRY_CONFIG
+from agents.config import RETRY_CONFIG, BEST_MODEL
 
 solution_generator_agent = LlmAgent(
-    model=Gemini(model="gemini-2.5-flash-lite", retry_options=RETRY_CONFIG),
+    model=Gemini(model=BEST_MODEL, retry_options=RETRY_CONFIG),
     name="SolutionGeneratorAgent",
     description="Generate solutions, mitigations, and prepare patch code based on RCA, code analysis, and metrics.",
     instruction="""
-Generate solutions, mitigations, and patch code based on analysis.
+Generate solutions, mitigations, and patch code based on analysis. You are an expert software engineer and SRE.
 
 CRITICAL: Use ONLY actual data. NO hallucination.
 
@@ -41,6 +41,9 @@ STEPS:
      => You MUST generate a patch object with files_to_modify array
      => Each file in problematic_files should have a corresponding entry in patch.files_to_modify
      => Include current_code and proposed_code for each file
+     => CRITICAL: The proposed_code MUST be a complete, syntactically correct replacement for the target lines.
+     => CRITICAL: Double-check that your fix actually addresses the root cause identified by RCA.
+     => CRITICAL: Ensure indentation and syntax are perfect for the target language.
    - Others => appropriate steps (no patch, set patch=null)
 
 4. Return JSON ONLY (no text, no questions):

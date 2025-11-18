@@ -92,3 +92,42 @@ def send_incident_email(
     _record_email_status(result)
     return result
 
+
+def send_incident_email_to_oncall(
+    subject: str,
+    body: str,
+    pr_url: Optional[str] = None,
+    pr_number: Optional[int] = None
+) -> dict:
+    """
+    Send an incident report email to all on-call engineers.
+    
+    Args:
+        subject: Email subject
+        body: Plain text email body
+        pr_url: Optional PR URL to include in email
+        pr_number: Optional PR number
+    
+    Returns:
+        Dict with send status and recipient list
+    """
+    from tools.email_sender import get_on_call_engineers
+    
+    recipients = get_on_call_engineers()
+    if not recipients:
+        return {
+            "status": "failed",
+            "error": "No on-call engineers found",
+            "recipients": []
+        }
+        
+    result = send_incident_email(
+        to=recipients,
+        subject=subject,
+        body=body,
+        pr_url=pr_url,
+        pr_number=pr_number
+    )
+    result["recipients"] = recipients
+    return result
+

@@ -8,8 +8,8 @@ from google.adk.models.google_llm import Gemini
 
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams, StdioServerParameters
-from incident_copilot.config import GITHUB_TOKEN, GITHUB_REPO, RETRY_CONFIG
-from incident_copilot.github import get_owner_repo, get_owner_repo_source
+from agents.config import GITHUB_TOKEN, GITHUB_REPO, RETRY_CONFIG, BEST_MODEL
+from agents.github import get_owner_repo, get_owner_repo_source
 
 _github_mcp_toolset = None
 
@@ -154,11 +154,11 @@ REPOSITORY CONFIGURATION:
         step2_example = ""
     
     return LlmAgent(
-        model=Gemini(model="gemini-2.5-flash-lite", retry_options=RETRY_CONFIG),
+        model=Gemini(model=BEST_MODEL, retry_options=RETRY_CONFIG),
         name="CodeAnalyzerAgent",
         description="Find problematic code locations using GitHub MCP and LLM analysis.",
         instruction=f"""
-Find problematic code locations using available tools and LLM analysis.
+Find problematic code locations using available tools and LLM analysis. You are an expert software engineer.
 
 If CodeAnalyzerGuardAgent already concluded "SKIP: Not a code issue", mirror that response and exit; otherwise continue.
 
@@ -211,6 +211,7 @@ STEPS:
    - Match error patterns to code logic
    - Identify exact functions/lines causing issue
    - Look for: retry without backoff, quota handling issues, error handling gaps, resource exhaustion
+   - Be thorough: check call chains if necessary (you can call get_file_contents multiple times)
 
 5. Return JSON:
 {{

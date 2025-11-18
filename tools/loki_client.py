@@ -2,8 +2,8 @@ import os
 import json
 import httpx
 import base64
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
-from incident_copilot.config import SERVICE_NAME
 
 def _get_grafana_host() -> str:
     host = os.getenv("GRAFANA_HOST", "").strip()
@@ -22,7 +22,24 @@ def _get_auth_headers() -> dict:
     return headers
 
 
-def query_loki(log_query: str, start: str, end: str) -> List[Dict]:
+DEFAULT_LOOKUP_SECONDS = int(os.getenv("LOOKUP_WINDOW_SECONDS", "900"))
+
+
+def _normalize_iso(ts: str) -> str:
+    ts = ts.strip()
+    if ts.isdigit():
+        parsed = datetime.fromtimestamp(int(ts), tz=timezone.utc)
+    else:
+        parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    return parsed.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def query_loki(
+    log_query: str,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    lookup_window_seconds: Optional[int] = None,
+) -> List[Dict]:
     """
     Query Grafana Loki for logs matching `log_query` between `start` and `end` (ISO timestamps).
     Returns list of log entries (dicts).
@@ -42,13 +59,30 @@ def query_loki(log_query: str, start: str, end: str) -> List[Dict]:
         raise ValueError(f"Invalid query: '{log_query}'. Please provide a valid Loki query (LogQL). Example: '{{job=\"orders-service\"}} |= \"ERROR\"'")
     
     grafana_host = _get_grafana_host()
+    lookup = lookup_window_seconds or DEFAULT_LOOKUP_SECONDS
+    if lookup <= 0:
+        raise ValueError("lookup_window_seconds must be greater than zero")
+
+    end_iso = (
+        _normalize_iso(end)
+        if end and end.strip()
+        else datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
+
+    if start and start.strip():
+        start_iso = _normalize_iso(start)
+    else:
+        end_dt = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+        start_dt = end_dt - timedelta(seconds=lookup)
+        start_iso = start_dt.isoformat().replace("+00:00", "Z")
+
     url = f"{grafana_host}/loki/api/v1/query_range"
     headers = _get_auth_headers()
     
     params = {
         "query": log_query.strip(),
-        "start": start,
-        "end": end,
+        "start": start_iso,
+        "end": end_iso,
         "limit": 1000
     }
     

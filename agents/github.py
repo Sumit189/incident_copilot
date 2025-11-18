@@ -576,3 +576,94 @@ def create_pull_request(
             "message": f"HTTP error while creating pull request: {exc}",
         }
 
+
+def verify_patch(
+    files: list[dict[str, str]],
+    base_branch: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Check if the proposed file changes are actually different from the base branch.
+    
+    Args:
+        files: List of dicts with 'path' and 'proposed_code'.
+        base_branch: Branch to compare against (default: configured base or main).
+        
+    Returns:
+        Dict with 'needs_changes' (bool) and 'message'.
+    """
+    if not files:
+        return {"needs_changes": False, "message": "No files to check"}
+
+    owner_repo = get_owner_repo()
+    if not owner_repo:
+        return {"needs_changes": False, "message": "Repository not configured"}
+    
+    if not GITHUB_TOKEN:
+        return {"needs_changes": False, "message": "GITHUB_TOKEN not set"}
+
+    owner, repo = owner_repo
+    branch = base_branch or GITHUB_BASE_BRANCH or "main"
+    
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            changes_needed = False
+            checked_files = 0
+            
+            for file_entry in files:
+                path = file_entry.get("path")
+                proposed = file_entry.get("proposed_code")
+                
+                if not path or proposed is None:
+                    continue
+                
+                path = path.lstrip("/")
+                
+                # Fetch current content
+                resp = client.get(
+                    f"https://api.github.com/repos/{owner}/{repo}/contents/{path}",
+                    params={"ref": branch},
+                    headers=_github_headers(),
+                )
+                
+                if resp.status_code == 404:
+                    # File doesn't exist, so creating it is a change
+                    changes_needed = True
+                    break
+                
+                if resp.status_code == 200:
+                    content_data = resp.json()
+                    if content_data.get("encoding") == "base64":
+                        current_b64 = content_data.get("content", "").replace("\n", "")
+                        try:
+                            current_content = base64.b64decode(current_b64).decode("utf-8")
+                        except Exception:
+                            # Binary or decode error, assume changed to be safe
+                            changes_needed = True
+                            break
+                            
+                        # Normalize both for comparison
+                        norm_current = _normalize_generated_content(current_content).strip()
+                        norm_proposed = _normalize_generated_content(proposed).strip()
+                        
+                        if norm_current != norm_proposed:
+                            changes_needed = True
+                            break
+                    else:
+                        # Unknown encoding, assume changed
+                        changes_needed = True
+                        break
+                else:
+                    # Error reading file, assume changed to be safe/robust
+                    changes_needed = True
+                    break
+                
+                checked_files += 1
+            
+            if changes_needed:
+                return {"needs_changes": True, "message": "Found files requiring updates"}
+            else:
+                return {"needs_changes": False, "message": f"All {checked_files} files are identical to {branch}"}
+                
+    except Exception as e:
+        return {"needs_changes": True, "message": f"Error verifying patch: {e}"}
+

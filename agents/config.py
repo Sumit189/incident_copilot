@@ -6,10 +6,12 @@ import os
 from google.genai import types
 
 # App Configuration
-APP_NAME = os.getenv("APP_NAME", "incident_copilot")
+APP_NAME = os.getenv("APP_NAME", "agents")
 
 # Model Configuration
 DEFAULT_MODEL = "gemini-2.5-flash-lite"
+MID_MODEL = "gemini-2.5-flash"
+BEST_MODEL = "gemini-2.5-pro"
 
 # Retry Configuration for all agents
 RETRY_CONFIG = types.HttpRetryOptions(
@@ -42,11 +44,9 @@ GIT_REPO_PATH = os.getenv("GIT_REPO_PATH", ".")
 GIT_BASE_BRANCH = os.getenv("GIT_BASE_BRANCH", "main")
 
 # Service/App Name Configuration
-SERVICE_NAME = os.getenv("SERVICE_NAME", "talestitch")
 WEBHOOK_USER_ID = os.getenv("WEBHOOK_USER_ID", "grafana_webhook")
 
 # Incident Lookup Window Configuration
-# How far back to look for logs before the incident start time (in seconds)
-# Default: 3600 seconds (1 hour)
-# Example: If incident starts at 11:00 AM and LOOKUP_WINDOW_SECONDS=3600, query logs from 10:00 AM to 11:00 AM
-LOOKUP_WINDOW_SECONDS = int(os.getenv("LOOKUP_WINDOW_SECONDS", "3600"))
+# Default window (seconds) used when the webhook omits `lookup_window_seconds`.
+# Default: 900 seconds (15 minutes). Override via env if a longer window is needed.
+LOOKUP_WINDOW_SECONDS = int(os.getenv("LOOKUP_WINDOW_SECONDS", "900"))
