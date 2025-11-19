@@ -21,7 +21,7 @@ from tools.email_helper import (
 
 logger = logging.getLogger("incident_copilot.orchestrator")
 
-from agents.config import APP_NAME, LOOKUP_WINDOW_SECONDS
+from agents.config import APP_NAME, LOOKUP_WINDOW_SECONDS, SAVE_OUTPUT
 
 
 session_service = InMemorySessionService()
@@ -145,11 +145,10 @@ async def run_workflow(
         "events_count": len(events),
     }
 
-    from agents.config import SAVE_OUTPUT
     if SAVE_OUTPUT:
-    os.makedirs("output", exist_ok=True)
-    fn = f"output/incident_{session.id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-    with open(fn, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
+        os.makedirs("output", exist_ok=True)
+        fn = f"output/incident_{session.id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(fn, "w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
 
     return output

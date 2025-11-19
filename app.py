@@ -10,7 +10,7 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from agents.agent import run_workflow
+from agents.orchestrator import run_workflow
 from agents.config import LOOKUP_WINDOW_SECONDS, WEBHOOK_USER_ID
 
 logger = logging.getLogger("incident_copilot.webhook")
