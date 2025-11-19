@@ -1,5 +1,5 @@
 # Incident CoPilot
-### Let your on-call engineers rest more
+### A production-grade multi-agent responder built to handle production incidents end to end.
 
 <p align="center">
   <img src="assets/incident_copilot.png" alt="Incident CoPilot overview" width="720">
