@@ -87,7 +87,7 @@ async def run_workflow(
     error = None
 
     try:
-        coro = app.run_async(
+        coro = runner.run_async(
             user_id=user_id,
             session_id=session.id,
             new_message=content,
