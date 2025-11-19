@@ -116,7 +116,7 @@ async def run_workflow(
     incident_detected = bool(incident_snapshot.get("incident_detected"))
 
     if incident_detected and not was_email_sent():
-        raise RuntimeError("EmailWriterAgent completed without calling send_incident_email_to_oncall.")
+        raise RuntimeError("PostProcessAgent completed without calling send_incident_email_to_oncall.")
 
     try:
         await memory_service.add_session_to_memory(session)

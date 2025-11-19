@@ -34,11 +34,30 @@ def publish_incident_report(
 
     logger = logging.getLogger(__name__)
 
+    # Construct a structured body for the email to ensure HTML formatting works best
+    structured_parts = []
+    if email_body:
+        structured_parts.append(email_body)
+    
+    if incident_summary:
+        structured_parts.append(f"INCIDENT SUMMARY — {incident_summary}")
+    
+    if root_cause:
+        structured_parts.append(f"ROOT CAUSE — {root_cause}")
+        
+    if mitigation_suggestions:
+        structured_parts.append(f"MITIGATION SUGGESTIONS — {mitigation_suggestions}")
+        
+    if proposed_solution:
+        structured_parts.append(f"PROPOSED SOLUTION — {proposed_solution}")
+
+    full_email_body = "\n\n".join(structured_parts)
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_email = executor.submit(
             send_incident_email_to_oncall,
             subject=email_subject,
-            body=email_body,
+            body=full_email_body,
             pr_url=pr_url,
             pr_number=int(pr_number) if pr_number and str(pr_number).isdigit() else None
         )

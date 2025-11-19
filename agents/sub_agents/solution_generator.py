@@ -64,14 +64,14 @@ STEPS:
     "can_auto_execute": true|false,
     "priority": "high|medium|low"
   }],
-  "patch": null | {
+    "patch": null | {
     "files_to_modify": [{
       "path": "<file path from Code Analyzer>",
       "function": "<function name from Code Analyzer>",
       "line_start": <line number>,
       "line_end": <line number>,
-      "current_code": "<actual current code snippet>",
-      "proposed_code": "<proposed fix code>",
+      "original_code_snippet": "<EXACT copy of the code block to be replaced>",
+      "new_code_snippet": "<The new code block to insert>",
       "reason": "<why this change is needed>"
     }],
     "test_cases": ["test case 1", "test case 2"],
@@ -95,8 +95,8 @@ CRITICAL RULES:
   * function: from problematic_files[].function_name
   * line_start: from problematic_files[].line_start
   * line_end: from problematic_files[].line_end
-  * current_code: actual code snippet from problematic_files[].code_snippet
-  * proposed_code: your proposed fix code
+  * original_code_snippet: MUST MATCH EXACTLY the code in the file to be replaced. Do not truncate.
+  * new_code_snippet: The replacement code.
   * reason: from problematic_files[].issue_description
 - Be specific, not generic - use real code snippets from Code Analyzer
 - If no patch needed, set patch=null and explain in category_reason

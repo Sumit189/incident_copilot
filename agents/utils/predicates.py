@@ -50,7 +50,8 @@ def is_patch_ready(ctx) -> bool:
         return False
     files = patch.get("files_to_modify") or []
     for file_entry in files:
-        if file_entry.get("proposed_code"):
+        # Check for new field (new_code_snippet) OR old field (proposed_code)
+        if file_entry.get("new_code_snippet") or file_entry.get("proposed_code"):
             return True
     return False
 

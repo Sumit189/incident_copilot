@@ -26,7 +26,7 @@ STEPS:
    - patch, recommended_solution, mitigations from Solution Generator Agent output (JSON)
    - root_cause, most_likely from RCA Agent output (JSON)
    - affected_services from Incident Detection Agent output (JSON)
-   - branch_name from Branch Creator Agent output (must be non-null)
+   - branch_name from File Updater Agent output (must be non-null)
    - files_updated from File Updater Agent output (must be > 0 to proceed)
    - service: Use first service from affected_services OR "unknown-service"
    - incident_id: Generate "incident-<service>-<timestamp>" for contextual references
@@ -59,8 +59,8 @@ STEPS:
 
 CRITICAL RULES:
 - You MUST call create_pull_request after branch and files are ready (unless skipping for missing data)
-- Use the branch_name exactly as provided by BranchCreatorAgent (includes suffix if branch helper added one)
-- Include pr_url and pr_number so EmailWriterAgent can reference them
+- Use the branch_name exactly as provided by FileUpdaterAgent
+- Include pr_url and pr_number so PostProcessAgent can reference them
 - If the helper returns status="error", propagate its message verbatim
 """,
         tools=tools_list

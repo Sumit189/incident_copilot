@@ -5,68 +5,85 @@
   <img src="assets/incident_copilot.png" alt="Incident CoPilot overview" width="720">
 </p>
 
-Incident CoPilot is a production-ready multi-agent responder that turns noisy Grafana alerts into actionable root-cause analysis, proposed fixes, GitHub pull requests, and html-formatted on-call briefs without waiting for a human to run the playbook.
+Incident CoPilot is a production-ready multi-agent system that takes noisy Grafana alerts and automatically delivers root-cause analysis, concrete mitigations, real GitHub pull requests, and clean HTML on-call briefs; all before an engineer even opens their laptop.
 
-## The Pitch
 
 ### Problem
-- On-call engineers still triage incidents manually: copy log links, guess the failure domain, write mitigation steps, and draft comms. Context switching during an outage costs minutes we do not have.
+- On-call engineers still juggle log scrapes, improvised RCA, quick fixes, and stakeholder updates while firefighting in real time. Every context switch costs minutes and makes it easier to miss a critical signal buried in Loki or Prometheus.
 
 ### Solution
-- A chained set of Gemini-powered agents that ingest Grafana Loki logs the moment an alert fires, confirm if the issue is code-related, run repository searches, draft a fix, open a PR, and notify on-call engineers through Gmail with a closing briefing from the EmailWriter agent.
+- A governed chain of Gemini agents activates the instant an alert hits the webhook. Logs and metrics are pulled automatically, predicates decide if deeper code analysis + PR generation should run, and PostProcessAgent ships an HTML brief plus webhook payload so humans stay informed without repeating boilerplate steps.
 
 ### Value
-- Shrinks time-to-mitigation by making “identify => diagnose => patch => communicate” a single automated workflow.
-- Keeps humans in control by surfacing structured evidence, proposed diffs, and ready-to-review pull requests instead of taking blind actions.
-- Every run saves JSON artifacts and email transcripts so SREs can audit or resume the response later, and the EmailWriter agent always issues the final email.
+- Collapses identify → diagnose → patch → communicate into a single, deterministic run that consistently finishes in minutes.
+- Surfaces structured evidence, real diffs, and ready-to-review pull requests; humans stay in the approval loop but never have to start cold.
+- When `SAVE_OUTPUT=true`, every outbound email is archived under `output/`, pairing nicely with the Mongo-backed trace logs for audits and incident reviews.
 
-### Track Relevance
-- Agents are not ornamental; they decide whether to run code workflows, what files to patch, and when to block unsafe actions. A tiered model strategy (Gemini 2.5 Pro for reasoning, Flash Lite for speed) ensures optimal performance and cost-efficiency.
+### Adaptive Workflow Control
+- Conditional agents (`create_conditional_workflow`, `create_conditional_code_analyzer`, `create_conditional_solution_pr_workflow`) keep the expensive code-analysis + PR chain locked behind signal-driven guards so only incidents that look like regressions invoke GitHub writes.
+- Tiers of Gemini models are mapped to the right job: **Gemini 2.5 Pro** handles deep reasoning (Incident Detection, Code Analysis, Solution Generation), while **Gemini 2.5 Flash/Flash Lite** power the RCA summaries, PR executor, and email composer for lower latency.
+- The `ContextInjectionPlugin` and predicate helpers reuse upstream snapshots (`agents.utils.state.get_agent_snapshot`) to keep every downstream stage aware of prior decisions without re-calling expensive tools.
 
 ## Implementation
 
 ### Architecture Snapshot
-- FastAPI webhook (`/webhook/trigger_agent`) accepts Grafana alerts (payload must include `service_name`; `lookup_window_seconds` is optional and defaults to 900 seconds/15 minutes) and starts an asynchronous session (`run_workflow` in `incident_copilot/agent.py`).
+- FastAPI webhook (`/webhook/trigger_agent` in `app.py`) accepts Grafana alerts (payload must include `service_name`; `lookup_window_seconds` is optional and defaults to 900 seconds/15 minutes) and hands the request to the ADK `App` defined in `agents/agent.py`, whose `root_agent` orchestrates the responders.
 - The orchestrator chains Sequential + Conditional + Parallel agents:
   1. `IncidentDetectionAgent` queries Loki via a FunctionTool and produces the canonical incident JSON.
   2. `CodeAnalyzerAgent` (guarded) uses the GitHub MCP toolset to inspect repos only when the incident looks like a code regression.
   3. `RCAAgent` and `SuggestionAgent` run in parallel to speed up analysis.
   4. `SolutionGeneratorAgent` emits mitigations plus structured patch objects; `PRExecutorAgent` (branch => file => PR) consumes that patch.
-  5. `EmailWriterAgent` builds an executive briefing, calls Gmail through `send_incident_email`, and triggers any configured `POST_PROCESS_URL` (e.g., webhook) in parallel. This ensures on-call engineers receive a summary and external systems are notified even if the guard skipped the incident.
-- Outputs land in `output/` as JSON + rendered emails for auditability.
+  5. `PostProcessAgent` builds an executive briefing, calls `publish_incident_report` (which sends Gmail via `tools.email_helper` and fires `trigger_post_process_action`), and runs any configured failover hooks in parallel so humans still get notified even if code actions were skipped.
+- When `SAVE_OUTPUT=true`, each outbound email body is mirrored to `output/` for later review.
+
+#### Agent Flow Diagram
+![Incident CoPilot Agent Workflow](assets/agent.png)
 
 ```
 Grafana Alert
      │
      ▼
-FastAPI Webhook ──► run_workflow()
+FastAPI Webhook ──► SequentialAgent: E2EIncidentWorkflow
      │
      ▼
-IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solution + PR chain
-                         └─► Parallel(RCAAgent, SuggestionAgent)
-                                                │
-                                                ▼
-                                      EmailWriterAgent => Gmail + HTML formatter
-                                                │
-                                                ▼
-                                      EmailWriterAgent => Gmail + HTML formatter
-                                                │
-                                                ▼
-                                      Failover email + Post-Process Action (Parallel) + output artifacts
+LlmAgent: IncidentDetectionAgent
+     │
+     ▼
+ConditionalAgent: create_conditional_workflow(...)
+     │
+     ├─ ConditionalAgent: ConditionalCodeAnalyzer
+     │      └─ LlmAgent: CodeAnalyzerAgent
+     │              └─ SequentialAgent: SolutionAndPRWorkflow
+     │                     ├─ LlmAgent: SolutionGeneratorAgent
+     │                     └─ ConditionalAgent: ConditionalPRExecutor
+     │                            └─ SequentialAgent: PRExecutorAgent
+     │                                   ├─ LlmAgent: FileUpdaterAgent
+     │                                   └─ LlmAgent: PRCreatorAgent
+     │
+     ├─ ParallelAgent: ParallelAnalysisAgent
+     │      ├─ LlmAgent: RCAAgent
+     │      └─ LlmAgent: SuggestionAgent
+     │
+     └─ (Skip entire block when predicates fail)
+     │
+     ▼
+ConditionalAgent: ConditionalPostProcess
+     └─ LlmAgent: PostProcessAgent
+            └─ FunctionTool: publish_incident_report()
+                   ├─ tools.email_helper (HTML Gmail delivery)
+                   └─ tools.post_process_helper (webhook/POST_PROCESS_URL)
 ```
-
-![Incident CoPilot Agent Workflow](assets/agent.png)
 
 ### Agent Roster (central ones)
 
 | Agent | Purpose | Tools / Concepts |
 | --- | --- | --- |
-| `IncidentDetectionAgent` | Executes LogQL queries against Loki, classifies severity and incident type hints. Uses **Gemini 2.5 Pro** for high-fidelity log analysis. | FunctionTool => `tools.loki_client.query_loki` |
+| `IncidentDetectionAgent` | Executes LogQL queries against Loki, classifies severity and incident type hints. Uses **Gemini 2.5 Pro** for high-fidelity log analysis. | FunctionTool => `tools.telemetry_tool.fetch_telemetry` (logs + metrics) |
 | `CodeAnalyzerAgent` | Launches the GitHub MCP server to search code and pull full files so patches reference real line numbers. Uses **Gemini 2.5 Pro** for deep code understanding. | MCP toolset, repo auto-detection |
 | `RCAAgent` | Converts log-derived evidence into explicit hypotheses with confidence + affected components. Uses **Gemini 2.5 Flash Lite** for fast pattern matching. | Context-grounded reasoning only |
 | `SolutionGeneratorAgent` | Generates mitigations and structured `patch.files_to_modify` payloads the PR workflow consumes. Uses **Gemini 2.5 Pro** for precise code generation. | JSON contract enforcement |
 | `PRExecutorAgent` | Sequentially creates a branch, writes files, and opens a PR (skips gracefully if nothing to patch). Uses **Gemini 2.5 Flash Lite**. | GitHub REST API helpers, PR gate |
-| `EmailWriterAgent` | Crafts the human-facing incident brief, calls Gmail, and triggers post-process actions (webhooks) in parallel. Uses **Gemini 2.5 Flash**. | `get_on_call_engineers`, `publish_incident_report` |
+| `PostProcessAgent` | Crafts the human-facing incident brief, calls Gmail, and triggers post-process actions (webhooks) in parallel. Uses **Gemini 2.5 Flash**. | `get_on_call_engineers`, `publish_incident_report` |
 
 ### Persistent Trace Logging
 - The unified tracer plugin (`custom_plugins/event_tracer_plugin.py`) captures every agent callback in memory so predicates can reuse structured outputs, and—when Mongo credentials are supplied—also writes one MongoDB document per `invocation_id`.
@@ -91,7 +108,7 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
         "errors": []
       }
     ],
-    "EmailWriterAgent": [
+    "PostProcessAgent": [
       {
         "...": "..."
       }
@@ -102,18 +119,20 @@ IncidentDetectionAgent ──┬─► Conditional Code Analyzer ──► Solut
 }
 ```
 - Configure the plugin via ADK’s plugin settings with your Mongo URI, database, and collection; once enabled every workflow automatically lands in that collection.
+- **Enable persistence:** set `MONGODB_URI`, `MONGODB_TRACE_DB_NAME` (fallback: `MONGODB_DB_NAME`), and `MONGODB_TRACE_COLL_NAME` (fallback: `MONGODB_COLL_TRACE_NAME`). Missing any value keeps tracing strictly in memory and emits a warning on startup.
 
 ### Architecture Highlights
 - **Multi-agent system (LLM, Sequential, Parallel):** Every stage is an LLM-backed agent; `SequentialAgent` orchestrates the run, `ParallelAgent` fans out RCA/Suggestion, and loop-style conditional wrappers gate optional steps (`conditional_code_analyzer`, `conditional_solution_pr_workflow`).
 - **Tools (MCP + custom):** Agents call FunctionTools for Grafana Loki, Gmail, GitHub REST, and the GitHub MCP toolset (`search_code`, `get_file_contents`) so patches cite real code.
 - **Sessions & Memory:** `InMemorySessionService` and `InMemoryMemoryService` maintain per-run state (`agent_responses`) so later agents reuse earlier outputs without re-querying systems.
-- **Observability & Deployment:** `LoggingPlugin` streams every agent event to stdout, JSON artifacts land in `output/`, and `app.py` exposes a FastAPI webhook for deployment on Uvicorn/Cloud Run.
+- **Observability & Deployment:** `LoggingPlugin` streams every agent event to stdout, optional email transcripts land in `output/` when `SAVE_OUTPUT=true`, and `app.py` exposes a FastAPI webhook for deployment on Uvicorn/Cloud Run.
+- **Context Injection:** `ContextInjectionPlugin` pulls structured snapshots (incident detection, proposed solutions, PR metadata) via `agents.utils.state.get_agent_snapshot` and prepends that summary before `PostProcessAgent` runs so the final briefing always sees the upstream context.
 - **Persistent Mongo traces:** `custom_plugins/event_tracer_plugin.py` keeps per-agent history in session state and, when configured, mirrors the full run (user input + agent events + tool activity) into MongoDB for postmortems.
 - **Safety & Guardrails:** Code-level predicates skip entire branches (incident response, code analyzer, solution/PR) when prior agent snapshots indicate a skip, so we avoid unnecessary LLM calls while keeping the workflow safe.
 
 ### Supporting Components
 - `tools/email_html_formatter.py` converts the plain-text brief into a responsive HTML template with sections (incident summary, RCA, solution status, action plan, PR).
-- `incident_copilot/github.py` centralizes branch/file/PR logic including repo auto-discovery, Base64 encoding, branch diff checks, and helpful error surfacing.
+- `agents/github.py` centralizes branch/file/PR logic including repo auto-discovery, Base64 encoding, branch diff checks, and helpful error surfacing.
 
 ## Setup
 
@@ -150,9 +169,13 @@ The system now supports pluggable telemetry providers for both logs and metrics.
 | `POST_PROCESS_URL` | Optional URL to trigger after the automated triage workflow (e.g., PagerDuty, Slack webhook). Receives incident JSON payload. |
 | `TELEMETRY_PROVIDER_LOGS` | Provider for logs (default: `loki`). Currently supports `loki`. |
 | `TELEMETRY_PROVIDER_METRICS` | Provider for metrics (default: `prometheus`). Currently supports `prometheus`. |
-| `PROMETHEUS_HOST` | Base URL for Prometheus (e.g., `http://prometheus:9090`). |
+| `PROMETHEUS_HOST` | Base URL for Prometheus (e.g., `http://prometheus:9090`). Falls back to `GRAFANA_HOST` when unset. |
+| `PROMETHEUS_BASICAUTH` | Optional `user:password` pair for Prometheus queries. |
 | `LOOKUP_WINDOW_SECONDS` | Default lookup window (seconds) used when a request omits `lookup_window_seconds`; otherwise the webhook-provided value controls how far back to query logs. |
-| `SAVE_OUTPUT` | When set to `true`/`1`, incident JSON artifacts are written to `output/`; otherwise they are skipped. |
+| `SAVE_OUTPUT` | When set to `true`/`1`, each outbound email is also saved as `output/email_<timestamp>.txt`. |
+| `MONGODB_URI` | MongoDB connection string used by `EventTracerPlugin` to persist agent traces. |
+| `MONGODB_TRACE_DB_NAME`, `MONGODB_DB_NAME` | Database name for trace persistence (prefers `_TRACE_DB_NAME`, falls back to the legacy `MONGODB_DB_NAME`). |
+| `MONGODB_TRACE_COLL_NAME`, `MONGODB_COLL_TRACE_NAME` | Collection name for trace persistence (prefers `_TRACE_COLL_NAME`, falls back to the legacy `MONGODB_COLL_TRACE_NAME`). |
 
 Create the file:
 
@@ -174,36 +197,20 @@ Cloud Run installations use `packages.txt` (lists `nodejs` + `npm`) plus this `p
 
 ## Running The Workflow
 
-### 1. Manual dry run from a REPL
+### 1. Start the webhook service
 
 ```
-python - <<'PY'
-import asyncio
-from incident_copilot.agent import run_workflow
-
-async def demo():
-    await run_workflow(
-        user_id="cli_test",
-        service_name="checkout-api",
-        end_time="2025-11-16T15:00:00Z",
-        lookup_window_seconds=3600
-    )
-
-asyncio.run(demo())
-PY
+uvicorn app:api --host 0.0.0.0 --port 8000
 ```
 
 ### 2. Trigger via webhook (hook it to Grafana)
 
-Webhook requests must provide `service_name` (the Grafana label you want in the LogQL query). `lookup_window_seconds` is optional; if omitted the webhook defaults to 900 seconds (15 minutes). The service treats the arrival timestamp as `end_time` and derives `start_time = end_time - lookup_window_seconds`.
+Webhook requests must provide `service_name` (the Grafana label you want in the LogQL query). `lookup_window_seconds` is optional; if omitted the webhook defaults to 900 seconds (15 minutes). The service treats the arrival timestamp as `end_time` and derives `start_time = end_time - lookup_window_seconds`. Additional fields (like `title`) are safely ignored after logging, so send only the keys you actually rely on.
 
 ```
-uvicorn app:api --host 0.0.0.0 --port 8000
-
 curl -X POST http://localhost:8000/webhook/trigger_agent \
   -H "Content-Type: application/json" \
   -d '{
-        "title":"Checkout errors > 5%",
         "service_name":"checkout-api",
         "lookup_window_seconds":3600
       }'
@@ -212,9 +219,9 @@ curl -X POST http://localhost:8000/webhook/trigger_agent \
  The endpoint stamps `service_name`, `user_id`, and the derived time window, then hands the payload to the orchestrator asynchronously so Grafana does not block.
 
 ### 3. Review artifacts
-- If `SAVE_OUTPUT=true` in `.env`, `output/incident_<id>_<timestamp>.json` includes workflow summaries, agent responses, and email delivery metadata; otherwise these files are skipped.
-- `output/*email.txt` lets you confirm what Gmail received.
-- Logs in the terminal include per-agent events thanks to `LoggingPlugin`.
+- If `SAVE_OUTPUT=true`, `tools.email_helper` writes every outbound message to `output/email_<timestamp>.txt` so you can audit what Gmail received.
+- `custom_plugins.event_tracer_plugin` logs per-agent events to stdout and, when Mongo credentials are set, persists the same structured trace for postmortems.
+- FastAPI logs (or the ADK console) show each agent’s reasoning thanks to `LoggingPlugin`.
 
 ### 4. Run in ADK Web
 1. Export the same environment variables you use locally (`GRAFANA_HOST`, `GITHUB_TOKEN`, `GMAIL_CLIENT_ID`, etc.) so ADK Web can access external services.
@@ -228,15 +235,17 @@ curl -X POST http://localhost:8000/webhook/trigger_agent \
    ```
    The web UI will stream each agent’s reasoning, tool calls, and outputs in real time.
 
--## Testing & Quality
-- Run `pytest` to execute the focused regression tests (HTML formatter, email helper status, workflow helpers).
+<p align="center">
+  <img src="assets/adk_web.png" alt="ADK Web session" width="720">
+</p>
+
+
+## Testing & Quality
+- Run `pytest` to exercise the regression tests that cover email formatting, incident actions, predicates, and telemetry helpers.
 - `tests/test_email_html_formatter.py` ensures section parsing renders correctly, preventing malformed executive briefs.
 - `tests/test_email_helper_status.py` guarantees the email status cache behaves even when the LLM handles the tool call.
 - For integration testing, point `GRAFANA_HOST` to a staging Loki instance and replay recorded incidents; every run is deterministic for the same logs.
-- **Mock Prometheus:** Use `scripts/mock_prometheus.py` to simulate metrics without a live server.
-  - Run: `python3 scripts/mock_prometheus.py`
-  - Configure: `PROMETHEUS_HOST=http://localhost:9090`
-  - Presets: Set `MOCK_CPU=high`, `MOCK_RAM=mid`, or `MOCK_NETWORK=low` to test different scenarios.
+- Simulate Prometheus metrics locally via `python3 scripts/mock_prometheus.py`, set `PROMETHEUS_HOST=http://localhost:9090`, and tweak `MOCK_CPU`, `MOCK_RAM`, or `MOCK_NETWORK` to cover different scenarios.
 
 ## Deployment
 
@@ -388,7 +397,7 @@ export SERVICE_URL=$(gcloud run services describe $SERVICE_ID \
 
 curl -X POST $SERVICE_URL/webhook/trigger_agent \
   -H "Content-Type: application/json" \
-  -d '{"title":"Test incident"}'
+  -d '{"service_name":"checkout-api","lookup_window_seconds":900}'
 
 gcloud run services logs read $SERVICE_ID --region $REGION --limit 50
 ```
@@ -449,10 +458,13 @@ No VPC configuration needed unless your Grafana instance is private.
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe incident-copilot --region $REGION --format="value(status.url)")
 
-# Test the webhook
+# Test the webhook (service_name is required; lookup_window_seconds optional)
 curl -X POST $SERVICE_URL/webhook/trigger_agent \
   -H "Content-Type: application/json" \
-  -d '{"title":"Test incident"}'
+  -d '{
+        "service_name":"checkout-api",
+        "lookup_window_seconds":900
+      }'
 ```
 
 #### Monitoring
@@ -460,12 +472,6 @@ curl -X POST $SERVICE_URL/webhook/trigger_agent \
 - View logs: `gcloud run services logs read incident-copilot --region $REGION`
 - Monitor in Cloud Console: Cloud Run => incident-copilot => Logs/Metrics
 - Set up alerting for failed workflows in Cloud Monitoring
-
-## Bonus Hooks
-- **Gemini usage:** The architecture demonstrates a sophisticated tiered model strategy. `Gemini 2.5 Pro` handles complex reasoning (Incident Detection, Code Analysis, Solution Generation), while `Gemini 2.5 Flash/Flash-Lite` handles high-volume/lower-complexity tasks (RCA, PR creation, Emailing). This optimizes for both intelligence and latency/cost.
-- **Tooling & Observability:** Loki client, GitHub REST helpers, Gmail sender, workflow gates, and HTML templates are each encapsulated in `tools/` with docstrings to explain their behavior.
-- **Deployment reproducibility:** The webhook + CLI flows above show exactly how judges can rerun the project; no hidden services required.
-- **Video-ready storyline:** Demo script “send Grafana alert => auto RCA => PR link + HTML email” is already storyboarded by the README sections, making it easy to narrate a short video if desired.
 
 ## Troubleshooting
 - Missing `GITHUB_REPO`: Code Analyzer quietly sets `mcp_available=false`; patch generation degrades to log-based suggestions instead of failing.

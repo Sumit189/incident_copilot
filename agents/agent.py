@@ -13,7 +13,7 @@ from agents.sub_agents import (
     incident_detection_agent,
     rca_agent,
     suggestion_agent,
-    email_writer_agent,
+    post_process_agent,
     create_conditional_workflow,
     create_incident_only_agent,
 )
@@ -21,6 +21,7 @@ from agents.sub_agents.code_analyzer_conditional import create_conditional_code_
 from agents.sub_agents.solution_pr_conditional import create_conditional_solution_pr_workflow
 
 from custom_plugins.event_tracer_plugin import EventTracerPlugin
+from custom_plugins.context_injection_plugin import ContextInjectionPlugin
 
 conditional_code_analyzer = create_conditional_code_analyzer()
 parallel_analysis_agent = ParallelAgent(
@@ -29,10 +30,10 @@ parallel_analysis_agent = ParallelAgent(
 )
 conditional_solution_pr_workflow = create_conditional_solution_pr_workflow()
 
-conditional_email_agent = create_incident_only_agent(
-    email_writer_agent,
-    name="ConditionalEmailWriter",
-    skip_message="No incident detected; skipping EmailWriterAgent.",
+conditional_post_process_agent = create_incident_only_agent(
+    post_process_agent,
+    name="ConditionalPostProcess",
+    skip_message="No incident detected; skipping PostProcessAgent.",
 )
 
 incident_response = [
@@ -46,7 +47,7 @@ root_agent = SequentialAgent(
     sub_agents=[
         incident_detection_agent,
         create_conditional_workflow(incident_response),
-        conditional_email_agent,
+        conditional_post_process_agent,
     ]
 )
 
@@ -60,6 +61,7 @@ def _get_env(*names: str):
 
 plugins = [
     LoggingPlugin(),
+    ContextInjectionPlugin(),
 ]
 
 mongo_uri = _get_env("MONGODB_URI")
