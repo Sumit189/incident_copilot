@@ -58,9 +58,24 @@ class EmailHtmlFormatterTests(unittest.TestCase):
         self.assertIn("Temporarily disable the /process endpoint", html)
 
         # Pull request block should reference URL and number
-        self.assertIn("CODE PATCH", html)
+        self.assertIn("Pull Request", html)
         self.assertIn("View PR #5", html)
         self.assertIn(pr_url, html)
+
+    def test_markdown_rendering(self):
+        """Test that markdown markers are converted to HTML."""
+        text = "This is **bold** and *italic* and `code`."
+        html = format_incident_email_html(text)
+        
+        # Check for styled elements
+        self.assertRegex(html, r'<strong[^>]*>bold</strong>')
+        self.assertRegex(html, r'<em[^>]*>italic</em>')
+        self.assertRegex(html, r'<code[^>]*>code</code>')
+        
+        # Check styles are applied
+        self.assertIn("font-weight: 700", html)
+        self.assertIn("font-style: italic", html)
+        self.assertIn("background-color: #e9ecef", html)
 
 if __name__ == "__main__":
     unittest.main()

@@ -26,12 +26,19 @@ Steps:
    - Suggestion Agent (if separate) => recommended_action, mitigations, solutions/steps.
    - PRCreatorAgent => pr_url and pr_number when status="success".
 2. Subject format: "[INCIDENT] <service-or-unknown> - <severity-or-low-confidence> - <brief issue status>".
-3. Plain-text body (no code fences) separated by blank lines:
+3. Plain-text body (no code fences) separated by blank lines. Use the format "SECTION NAME — Content" (with an em-dash or hyphen) to ensure the email formatter renders them as blocks:
+   - Use **bold** for key metrics, status, or important warnings.
+   - Use *italic* for emphasis on service names or specific terms.
+   - Use `backticks` for error codes, file paths, or short snippets.
+   
    INCIDENT SUMMARY — service, severity (or note if unconfirmed), window, leading symptoms, total errors.
    ROOT CAUSE — why/how with evidence (or state that no RCA was found).
    SOLUTION STATUS — quote or summarize the latest SolutionGeneratorAgent message and explicitly state if the issue remains unknown (include recommended mitigations even when confidence is low).
    ACTION PLAN — numbered immediate/short-term/long-term steps derived from mitigations/solutions.
-   PULL REQUEST — include link + number + requested action only when pr_url exists; explicitly connect it to the Solution STATUS text (e.g., "Code changes for the validation fix are in PR ...").
+   PULL REQUEST — ONLY include this section if pr_url is MISSING or NULL. State why no PR was created (e.g., "No code changes required", "Manual investigation needed").
+   
+   IMPORTANT: If pr_url EXISTS, DO NOT include a "PULL REQUEST" section in the text body. The system will automatically append a formatted "Pull Request" block using the pr_url argument.
+
 5. Call publish_incident_report with these EXACT arguments:
    - 'email_subject': "[INCIDENT] <service> - <severity> - <status>"
    - 'email_body': The full plain-text email body.
@@ -45,7 +52,7 @@ Steps:
    IMPORTANT:
    - Do NOT omit arguments. Pass "" for empty strings and null for missing optional values.
    - Ensure 'pr_number' is a string or integer, NOT the string "None".
-
+   - Ensure 'pr_url' is a valid URL (starting with http/https). If it looks like a dummy value (e.g. "http://example.com/pr/123" or "None"), pass null.
 
 6. After the tool returns, respond with confirmation such as "Incident report published successfully".
 """,

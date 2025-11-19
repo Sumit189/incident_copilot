@@ -53,3 +53,15 @@ def is_patch_ready(ctx) -> bool:
         if file_entry.get("proposed_code"):
             return True
     return False
+
+def has_pr_url(ctx) -> bool:
+    """
+    Predicate: PRCreatorAgent ran successfully AND returned a valid pr_url
+    """
+    snapshot = get_agent_snapshot(ctx.session, "PRCreatorAgent")
+    if not isinstance(snapshot, dict):
+        return False
+        
+    pr_url = snapshot.get("pr_url")
+    # Check if it's a non-empty string and looks like a URL
+    return bool(pr_url and isinstance(pr_url, str) and pr_url.startswith("http"))

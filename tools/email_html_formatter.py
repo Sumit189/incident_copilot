@@ -68,7 +68,7 @@ def format_incident_email_html(plain_text_body: str, pr_url: Optional[str] = Non
     
     if not body_html.strip():
         body_html = '<div style="color: #495057; line-height: 1.7;">' + '<br>'.join(
-            [_escape_html(line) for line in plain_text_body.split('\n') if line.strip()]
+            [_format_rich_text(line) for line in plain_text_body.split('\n') if line.strip()]
         ) + '</div>'
     
     return html_template.format(content=body_html)
@@ -179,7 +179,7 @@ def _render_incident_summary(content: str) -> str:
     rows_html = ''.join(format_key_value_pair(key.strip().rstrip('.'), value) for key, value in pairs)
     table_html = f'<table style="width: 100%; border-collapse: collapse;">{rows_html}</table>' if rows_html else ''
     extra_html = ''.join(
-        f'<p style="margin: 0 0 10px 0; color: #495057; line-height: 1.6;">{_escape_html(text)}</p>'
+        f'<p style="margin: 0 0 10px 0; color: #495057; line-height: 1.6;">{_format_rich_text(text)}</p>'
         for text in extras
     )
     return _wrap_section("Incident Summary", table_html + extra_html)
@@ -209,7 +209,7 @@ def _render_paragraphs(content: str) -> str:
         paragraphs = [content.strip()]
 
     return ''.join(
-        f'<p style="margin: 0 0 12px 0; color: #495057; line-height: 1.7;">{_escape_html(text)}</p>'
+        f'<p style="margin: 0 0 12px 0; color: #495057; line-height: 1.7;">{_format_rich_text(text)}</p>'
         for text in paragraphs
     )
 
@@ -229,7 +229,7 @@ def _render_action_plan(content: str) -> str:
 
     if bullet_items:
         items_html = ''.join(
-            f'<li style="margin-bottom: 8px;">{_escape_html(item)}</li>'
+            f'<li style="margin-bottom: 8px;">{_format_rich_text(item)}</li>'
             for item in bullet_items
         )
         return _wrap_section(
@@ -301,7 +301,7 @@ def _format_block(block: list[str]) -> str:
         candidate = block[0].strip()
         stripped = candidate.replace('-', '').replace('=', '').strip()
         if stripped and stripped == stripped.upper() and len(stripped) > 3:
-            return f'<h2 style="color: #2c3e50; font-size: 18px; font-weight: 600; margin: 30px 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">{_escape_html(candidate.title())}</h2>'
+            return f'<h2 style="color: #2c3e50; font-size: 18px; font-weight: 600; margin: 30px 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #e9ecef;">{_format_rich_text(candidate.title())}</h2>'
     
     # List detection (numbered or dashed)
     list_items = []
@@ -318,14 +318,14 @@ def _format_block(block: list[str]) -> str:
     
     if is_list and list_items:
         items_html = ''.join(
-            f'<li style="margin-bottom: 8px; line-height: 1.6;">{_escape_html(item)}</li>'
+            f'<li style="margin-bottom: 8px; line-height: 1.6;">{_format_rich_text(item)}</li>'
             for item in list_items
         )
         return f'<ul style="margin: 0 0 20px 0; padding-left: 25px; color: #495057;">{items_html}</ul>'
     
     # Paragraph block
     paragraph = ' '.join(s.strip() for s in block if s.strip())
-    return f'<p style="margin: 0 0 15px 0; color: #495057; line-height: 1.7;">{_escape_html(paragraph)}</p>'
+    return f'<p style="margin: 0 0 15px 0; color: #495057; line-height: 1.7;">{_format_rich_text(paragraph)}</p>'
 
 
 def _format_section(title: Optional[str], content: list, is_list: bool) -> str:
@@ -338,12 +338,12 @@ def _format_section(title: Optional[str], content: list, is_list: bool) -> str:
     if is_list:
         html.append('<ul style="margin: 0 0 20px 0; padding-left: 25px; color: #495057;">')
         for item in content:
-            html.append(f'<li style="margin-bottom: 8px; line-height: 1.6;">{_escape_html(item)}</li>')
+            html.append(f'<li style="margin-bottom: 8px; line-height: 1.6;">{_format_rich_text(item)}</li>')
         html.append('</ul>')
     else:
         for para in content:
             if para.strip():
-                html.append(f'<p style="margin: 0 0 15px 0; color: #495057; line-height: 1.7;">{_escape_html(para)}</p>')
+                html.append(f'<p style="margin: 0 0 15px 0; color: #495057; line-height: 1.7;">{_format_rich_text(para)}</p>')
     
     return '\n'.join(html)
 
@@ -355,9 +355,9 @@ def _format_pr_section(pr_url: str, pr_number: Optional[int] = None, description
     
     return f"""
     <div style="margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-left: 4px solid #2c3e50; border-radius: 4px;">
-        <h3 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px; font-weight: 600;">CODE PATCH</h3>
+        <h3 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 16px; font-weight: 600;">Pull Request</h3>
         <p style="margin: 0 0 15px 0; color: #495057; line-height: 1.6;">
-            {_escape_html(details)}
+            {_format_rich_text(details)}
         </p>
         <table role="presentation" cellspacing="0" cellpadding="0" border="0">
             <tr>
@@ -375,6 +375,26 @@ def _format_pr_section(pr_url: str, pr_number: Optional[int] = None, description
     """
 
 
+def _format_rich_text(text: str) -> str:
+    """Escape HTML and apply markdown formatting."""
+    escaped = _escape_html(text)
+    return _apply_markdown(escaped)
+
+
+def _apply_markdown(text: str) -> str:
+    """Convert simple markdown markers to HTML with inline styles."""
+    # Bold: **text** -> <strong>
+    text = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #2c3e50; font-weight: 700;">\1</strong>', text)
+    
+    # Italic: *text* -> <em>
+    text = re.sub(r'\*(.*?)\*', r'<em style="color: #495057; font-style: italic;">\1</em>', text)
+    
+    # Code: `text` -> <code>
+    text = re.sub(r'`(.*?)`', r'<code style="background-color: #e9ecef; padding: 2px 5px; border-radius: 3px; font-family: SFMono-Regular, Consolas, \'Liberation Mono\', Menlo, monospace; font-size: 0.9em; color: #d63384;">\1</code>', text)
+    
+    return text
+
+
 def _escape_html(text: str) -> str:
     """Escape HTML special characters."""
     return (text
@@ -390,7 +410,7 @@ def format_key_value_pair(key: str, value: str) -> str:
     return f"""
     <tr>
         <td style="padding: 8px 0; color: #6c757d; font-weight: 600; width: 150px; vertical-align: top;">{key}:</td>
-        <td style="padding: 8px 0; color: #495057;">{_escape_html(value)}</td>
+        <td style="padding: 8px 0; color: #495057;">{_format_rich_text(value)}</td>
     </tr>
     """
 

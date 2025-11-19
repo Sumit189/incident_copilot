@@ -125,3 +125,25 @@ from unittest.mock import patch
 def test_is_patch_ready_false_list_snapshot(mock_get_snapshot, mock_ctx):
     mock_get_snapshot.return_value = [{"some": "list"}]
     assert is_patch_ready(mock_ctx) is False
+
+from agents.utils.predicates import has_pr_url
+
+@patch('agents.utils.predicates.get_agent_snapshot')
+def test_has_pr_url_true(mock_get_snapshot, mock_ctx):
+    mock_get_snapshot.return_value = {"pr_url": "http://github.com/pr/123"}
+    assert has_pr_url(mock_ctx) is True
+
+@patch('agents.utils.predicates.get_agent_snapshot')
+def test_has_pr_url_false_none(mock_get_snapshot, mock_ctx):
+    mock_get_snapshot.return_value = {"pr_url": None}
+    assert has_pr_url(mock_ctx) is False
+
+@patch('agents.utils.predicates.get_agent_snapshot')
+def test_has_pr_url_false_empty(mock_get_snapshot, mock_ctx):
+    mock_get_snapshot.return_value = {"pr_url": ""}
+    assert has_pr_url(mock_ctx) is False
+
+@patch('agents.utils.predicates.get_agent_snapshot')
+def test_has_pr_url_false_dummy(mock_get_snapshot, mock_ctx):
+    mock_get_snapshot.return_value = {"pr_url": 123}
+    assert has_pr_url(mock_ctx) is False
