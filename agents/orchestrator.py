@@ -21,17 +21,11 @@ from tools.email_helper import (
 
 logger = logging.getLogger("incident_copilot.orchestrator")
 
-from agents.config import APP_NAME, LOOKUP_WINDOW_SECONDS, SAVE_OUTPUT
+from agents.config import LOOKUP_WINDOW_SECONDS, SAVE_OUTPUT
 
 
 session_service = InMemorySessionService()
 memory_service = InMemoryMemoryService()
-
-runner = Runner(
-    app=app,
-    session_service=session_service,
-    memory_service=memory_service,
-)
 
 
 def _normalize_iso8601(timestamp: str) -> datetime:
@@ -74,7 +68,7 @@ async def run_workflow(
     content = types.Content(parts=[types.Part(text=json.dumps(payload))], role="user")
 
     session = await session_service.create_session(
-        app_name=APP_NAME,
+        app_name=app.name,
         user_id=user_id,
         session_id=f"incident_{uuid.uuid4().hex[:8]}",
     )
@@ -87,6 +81,12 @@ async def run_workflow(
     error = None
 
     try:
+        runner = Runner(
+            app=app,
+            session_service=session_service,
+            memory_service=memory_service,
+        )
+        
         coro = runner.run_async(
             user_id=user_id,
             session_id=session.id,

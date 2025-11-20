@@ -5,9 +5,6 @@ Configuration for Incident CoPilot agents and tools.
 import os
 from google.genai import types
 
-# App Configuration
-APP_NAME = os.getenv("APP_NAME", "agents")
-
 # Model Configuration
 DEFAULT_MODEL = "gemini-2.5-flash-lite"
 MID_MODEL = "gemini-2.5-flash"

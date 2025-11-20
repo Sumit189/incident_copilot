@@ -1,16 +1,19 @@
+import asyncio
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
 from agents.orchestrator import run_workflow
 from agents.config import LOOKUP_WINDOW_SECONDS, WEBHOOK_USER_ID
+
+_active_tasks: Set[asyncio.Task] = set()
 
 logger = logging.getLogger("incident_copilot.webhook")
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -75,12 +78,15 @@ async def _run_workflow_task(user_id: str, service_name: str, end_time: str, loo
             end_time,
             lookup_window_seconds,
         )
+    finally:
+        current_task = asyncio.current_task()
+        if current_task and current_task in _active_tasks:
+            _active_tasks.discard(current_task)
 
 
 def _default_dispatcher(
-    background_tasks: BackgroundTasks,
     *, user_id: str, service_name: str, end_time: str, lookup_window_seconds: int, payload: Dict[str, Any]
-):
+) -> asyncio.Task:
     logger.info(
         "Grafana webhook accepted for service=%s user_id=%s end_time=%s lookup_window_seconds=%s status=%s",
         service_name,
@@ -89,16 +95,18 @@ def _default_dispatcher(
         lookup_window_seconds,
         payload.get("status"),
     )
-    background_tasks.add_task(
-        _run_workflow_task, user_id, service_name, end_time, lookup_window_seconds
+    task = asyncio.create_task(
+        _run_workflow_task(user_id, service_name, end_time, lookup_window_seconds)
     )
+    _active_tasks.add(task)
+    return task
 
 
 workflow_dispatcher = _default_dispatcher
 
 
 @api.post("/webhook/trigger_agent", status_code=202)
-async def grafana_webhook(payload: Dict[str, Any], background_tasks: BackgroundTasks) -> JSONResponse:
+async def grafana_webhook(payload: Dict[str, Any]) -> JSONResponse:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="JSON body required")
 
@@ -107,8 +115,7 @@ async def grafana_webhook(payload: Dict[str, Any], background_tasks: BackgroundT
     end_time = _iso_now_utc()
     lookup_window_seconds = _parse_lookup_window(payload)
 
-    workflow_dispatcher(
-        background_tasks,
+    task = workflow_dispatcher(
         user_id=user_id,
         service_name=service_name,
         end_time=end_time,

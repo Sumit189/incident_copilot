@@ -159,7 +159,6 @@ The system now supports pluggable telemetry providers for both logs and metrics.
 
 | Variable | Purpose |
 | --- | --- |
-| `APP_NAME` | Friendly label shown in ADK sessions |
 | `GRAFANA_HOST`, `GRAFANA_BASICAUTH` | HTTPS endpoint + `user:password` used to query Loki |
 | `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_BASE_BRANCH`, `GIT_REPO_PATH` | Grants repo access for MCP + REST commits |
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_USER_EMAIL` | OAuth credentials for Gmail send API |
@@ -290,10 +289,16 @@ gcloud run deploy $SERVICE_ID \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 2 \
+  --no-cpu-throttling \
   --timeout 900 \
   --max-instances 10 \
-  --min-instances 0
+  --min-instances 0 \
+  --concurrency 1
 ```
+
+**Important:** 
+- The `--no-cpu-throttling` flag is **required** - it ensures CPU remains allocated for background tasks to complete after the HTTP response is sent. Without this, Cloud Run will throttle CPU and background tasks may not execute.
+- The `--concurrency 1` setting ensures one request per instance, preventing interference with background task execution.
 
 **Step 3: Configure Environment Variables**
 
@@ -302,7 +307,7 @@ Set non-sensitive environment variables:
 ```bash
 gcloud run services update $SERVICE_ID \
   --region $REGION \
-  --set-env-vars "APP_NAME=incident_copilot,WEBHOOK_USER_ID=grafana_webhook,LOOKUP_WINDOW_SECONDS=3600,GITHUB_BASE_BRANCH=main,GIT_BASE_BRANCH=main,MONGODB_TRACE_DB_NAME=incident_copilot,MONGODB_COLL_TRACE_NAME=agent_traces"
+  --set-env-vars "WEBHOOK_USER_ID=grafana_webhook,LOOKUP_WINDOW_SECONDS=3600,GITHUB_BASE_BRANCH=main,GIT_BASE_BRANCH=main,MONGODB_TRACE_DB_NAME=incident_copilot,MONGODB_COLL_TRACE_NAME=agent_traces"
 ```
 
 **Step 4: Set Up Secrets (Recommended for Sensitive Values)**
@@ -422,8 +427,7 @@ If you prefer not to use Secret Manager, you can set all variables directly (les
 gcloud run services update $SERVICE_ID \
   --region $REGION \
   --set-env-vars \
-    "APP_NAME=incident_copilot,\
-    WEBHOOK_USER_ID=grafana_webhook,\
+    "WEBHOOK_USER_ID=grafana_webhook,\
     LOOKUP_WINDOW_SECONDS=3600,\
     GITHUB_BASE_BRANCH=main,\
     GIT_BASE_BRANCH=main,\
@@ -448,9 +452,12 @@ gcloud run services update $SERVICE_ID \
 The FastAPI app is stateless; Gemini + Google ADK handle runtime state in memory per session. Ensure the Cloud Run service has:
 - **Memory:** At least 2Gi (recommended: 4Gi for complex workflows)
 - **CPU:** At least 2 vCPU
+- **CPU Throttling:** Disabled (`--no-cpu-throttling`) - **Required** for background tasks to complete after HTTP response. Without this flag, Cloud Run will throttle CPU after the response is sent, causing background tasks to fail.
 - **Timeout:** 900 seconds (15 minutes) for long-running agent workflows
-- **Concurrency:** 1-10 requests per instance (adjust based on workload)
+- **Concurrency:** 1 request per instance (`--concurrency 1`) - **Recommended** to prevent interference with background tasks
 - **Min/Max instances:** Configure based on expected traffic
+
+**Note:** The Runner is created per-request (not at module level) to ensure proper session access in Cloud Run's async environment. Sessions are created using `app.name` ("agents" from `agent.py`) to ensure the Runner can find them during execution.
 
 #### Environment Variables
 
