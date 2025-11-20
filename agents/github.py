@@ -263,7 +263,7 @@ def create_incident_branch(
                     "message": f"Failed to load base branch '{branch_to_use}': {ref_resp.text}",
                 }
 
-            base_sha = ref_resp.json().get("object", {}).get("sha")
+            base_sha = (ref_resp.json().get("object") or {}).get("sha")
             if not base_sha:
                 return {
                     "status": "error",
@@ -705,7 +705,7 @@ def apply_change_to_file(
                     "status": "success",
                     "path": path,
                     "branch": branch,
-                    "commit_sha": body.get("commit", {}).get("sha"),
+                    "commit_sha": (body.get("commit") or {}).get("sha"),
                     "message": f"Successfully updated {path}"
                 }
             else:

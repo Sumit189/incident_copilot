@@ -94,7 +94,7 @@ def query_loki(
         data = response.json()
         
         entries = []
-        for stream in data.get("data", {}).get("result", []):
+        for stream in (data.get("data") or {}).get("result", []):
             stream_labels = stream.get("stream", {})
             
             for entry in stream.get("values", []):

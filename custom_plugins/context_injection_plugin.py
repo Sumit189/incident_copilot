@@ -36,10 +36,11 @@ class ContextInjectionPlugin(BasePlugin):
             context_summary += f"- Evidence: {incident_data.get('evidence', 'None provided')}\n\n"
 
         if solution_data:
+            patch_data = solution_data.get('patch') or {}
             context_summary += f"SOLUTION GENERATION:\n"
             context_summary += f"- Proposed Solution: {solution_data.get('proposed_solution', 'Unknown')}\n"
-            context_summary += f"- Technical Details: {solution_data.get('patch', {}).get('files_to_modify', 'See PR for details')}\n"
-            context_summary += f"- Verification Steps: {solution_data.get('patch', {}).get('test_cases', 'None provided')}\n"
+            context_summary += f"- Technical Details: {patch_data.get('files_to_modify', 'See PR for details')}\n"
+            context_summary += f"- Verification Steps: {patch_data.get('test_cases', 'None provided')}\n"
             context_summary += f"- Mitigation: {solution_data.get('mitigation_suggestions', 'Unknown')}\n\n"
 
         if pr_data:

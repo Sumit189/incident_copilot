@@ -18,11 +18,8 @@ class PrometheusProvider(TelemetryProvider):
         if self.basic_auth:
             auth_b64 = base64.b64encode(self.basic_auth.encode("utf-8")).decode("utf-8")
             headers["Authorization"] = f"Basic {auth_b64}"
-        elif os.getenv("GRAFANA_BASICAUTH"):
-             # Fallback auth
-             auth = os.getenv("GRAFANA_BASICAUTH", "").strip()
-             auth_b64 = base64.b64encode(auth.encode("utf-8")).decode("utf-8")
-             headers["Authorization"] = f"Basic {auth_b64}"
+        else:
+            raise ValueError("PROMETHEUS_BASICAUTH environment variable is not set")
         return headers
 
     def query(
@@ -54,14 +51,13 @@ class PrometheusProvider(TelemetryProvider):
             
             results = []
             if data.get("status") == "success":
-                for result in data.get("data", {}).get("result", []):
+                for result in (data.get("data") or {}).get("result", []):
                     metric = result.get("metric", {})
                     values = result.get("values", [])
                     
-                    # Transform to a more friendly format for the LLM
                     results.append({
                         "metric": metric,
-                        "values": values, # List of [timestamp, value]
+                        "values": values,
                         "summary": {
                             "count": len(values),
                             "min": min([float(v[1]) for v in values]) if values else 0,

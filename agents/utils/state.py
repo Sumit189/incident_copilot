@@ -117,7 +117,7 @@ def get_agent_snapshot(session: Session, agent_name: str) -> Optional[Any]:
     if snapshot is not None:
         return snapshot
 
-    responses = session.state.get("agent_responses", {}).get(agent_name) or []
+    responses = (session.state.get("agent_responses") or {}).get(agent_name) or []
     logger.debug(
         "[state] No snapshot for %s; attempting to parse %d responses",
         agent_name,
