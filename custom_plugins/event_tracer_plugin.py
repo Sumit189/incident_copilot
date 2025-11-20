@@ -85,8 +85,6 @@ class EventTracerPlugin(BasePlugin):
             etype = "state_update"
         elif actions and (actions.transfer_to_agent or actions.escalate):
             etype = "control_signal"
-        elif hasattr(ev, "is_final_response") and ev.is_final_response():
-            etype = "final_output"
         else:
             etype = "agent_output"
 

@@ -100,8 +100,6 @@ async def run_workflow(
                     for part in event.content.parts or []:
                         if getattr(part, "text", None):
                             all_responses.append(part.text)
-                if getattr(event, "is_final_response", lambda: False)():
-                    break
 
         await asyncio.wait_for(collect(), timeout=timeout_seconds)
 
