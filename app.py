@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import os
 from datetime import datetime, timezone
@@ -7,7 +6,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from agents.orchestrator import run_workflow
@@ -79,6 +78,7 @@ async def _run_workflow_task(user_id: str, service_name: str, end_time: str, loo
 
 
 def _default_dispatcher(
+    background_tasks: BackgroundTasks,
     *, user_id: str, service_name: str, end_time: str, lookup_window_seconds: int, payload: Dict[str, Any]
 ):
     logger.info(
@@ -89,8 +89,8 @@ def _default_dispatcher(
         lookup_window_seconds,
         payload.get("status"),
     )
-    return asyncio.create_task(
-        _run_workflow_task(user_id, service_name, end_time, lookup_window_seconds)
+    background_tasks.add_task(
+        _run_workflow_task, user_id, service_name, end_time, lookup_window_seconds
     )
 
 
@@ -98,7 +98,7 @@ workflow_dispatcher = _default_dispatcher
 
 
 @api.post("/webhook/trigger_agent", status_code=202)
-async def grafana_webhook(payload: Dict[str, Any]) -> JSONResponse:
+async def grafana_webhook(payload: Dict[str, Any], background_tasks: BackgroundTasks) -> JSONResponse:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="JSON body required")
 
@@ -108,6 +108,7 @@ async def grafana_webhook(payload: Dict[str, Any]) -> JSONResponse:
     lookup_window_seconds = _parse_lookup_window(payload)
 
     workflow_dispatcher(
+        background_tasks,
         user_id=user_id,
         service_name=service_name,
         end_time=end_time,
