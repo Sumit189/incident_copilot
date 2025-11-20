@@ -60,6 +60,7 @@ STEPS:
 CRITICAL RULES:
 - You MUST call create_pull_request after branch and files are ready (unless skipping for missing data)
 - Use the branch_name exactly as provided by FileUpdaterAgent
+- DO NOT attempt to modify files. File updates are handled by FileUpdaterAgent. Your ONLY job is to create the PR.
 - Include pr_url and pr_number so PostProcessAgent can reference them
 - If the helper returns status="error", propagate its message verbatim
 """,
@@ -68,4 +69,3 @@ CRITICAL RULES:
 
 
 pr_creator_agent = _create_pr_creator_agent()
-
