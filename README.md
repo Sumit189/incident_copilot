@@ -302,7 +302,7 @@ Set non-sensitive environment variables:
 ```bash
 gcloud run services update $SERVICE_ID \
   --region $REGION \
-  --set-env-vars "APP_NAME=incident_copilot,WEBHOOK_USER_ID=grafana_webhook,LOOKUP_WINDOW_SECONDS=3600,GITHUB_BASE_BRANCH=main,GIT_BASE_BRANCH=main"
+  --set-env-vars "APP_NAME=incident_copilot,WEBHOOK_USER_ID=grafana_webhook,LOOKUP_WINDOW_SECONDS=3600,GITHUB_BASE_BRANCH=main,GIT_BASE_BRANCH=main,MONGODB_TRACE_DB_NAME=incident_copilot,MONGODB_COLL_TRACE_NAME=agent_traces"
 ```
 
 **Step 4: Set Up Secrets (Recommended for Sensitive Values)**
@@ -322,6 +322,8 @@ echo -n "your-github-repo" | gcloud secrets create github-repo --data-file=-
 echo -n '["email1@example.com","email2@example.com"]' | gcloud secrets create on-call-engineers --data-file=-
 echo -n "https://your-grafana-instance.com" | gcloud secrets create grafana-host --data-file=-
 echo -n "your-gemini-api-key" | gcloud secrets create gemini-api-key --data-file=-
+echo -n "your-mongodb-uri" | gcloud secrets create mongodb-uri --data-file=-
+echo -n "http://prometheus:9090" | gcloud secrets create prometheus-host --data-file=-
 ```
 
 Grant Cloud Run service account access to secrets:
@@ -368,6 +370,14 @@ gcloud secrets add-iam-policy-binding grafana-host \
 gcloud secrets add-iam-policy-binding gemini-api-key \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
+
+gcloud secrets add-iam-policy-binding mongodb-uri \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+
+gcloud secrets add-iam-policy-binding prometheus-host \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
 ```
 
 Update Cloud Run service to use secrets:
@@ -385,7 +395,9 @@ gcloud run services update $SERVICE_ID \
     GITHUB_REPO=github-repo:latest,\
     ON_CALL_ENGINEERS=on-call-engineers:latest,\
     GRAFANA_HOST=grafana-host:latest,\
-    GEMINI_API_KEY=gemini-api-key:latest
+    GEMINI_API_KEY=gemini-api-key:latest,\
+    MONGODB_URI=mongodb-uri:latest,\
+    PROMETHEUS_HOST=prometheus-host:latest
 ```
 
 **Step 5: Verify Deployment**
@@ -424,7 +436,11 @@ gcloud run services update $SERVICE_ID \
     GMAIL_REFRESH_TOKEN=your-refresh-token,\
     GMAIL_USER_EMAIL=your-email@gmail.com,\
     ON_CALL_ENGINEERS=[\"email1@example.com\",\"email2@example.com\"],\
-    GEMINI_API_KEY=your-gemini-api-key"
+    GEMINI_API_KEY=your-gemini-api-key,\
+    MONGODB_URI=your-mongodb-uri,\
+    MONGODB_TRACE_DB_NAME=incident_copilot,\
+    MONGODB_COLL_TRACE_NAME=agent_traces,\
+    PROMETHEUS_HOST=http://prometheus:9090"
 ```
 
 #### Configuration
