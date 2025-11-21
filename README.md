@@ -168,6 +168,7 @@ The system now supports pluggable telemetry providers for both logs and metrics.
 | `WEBHOOK_USER_ID` | Label applied to webhook-triggered sessions |
 | `WEBHOOK_API_KEY` | **REQUIRED**. API key to protect the webhook endpoint. Requests must include `X-Webhook-API-Key` header. |
 | `POST_PROCESS_URL` | Optional URL to trigger after the automated triage workflow (e.g., PagerDuty, Slack webhook). Receives incident JSON payload. |
+| `WEBHOOK_API_KEY` | Optional shared secret validated by `/webhook/trigger_agent` when `WEBHOOK_API_KEY` is set. |
 | `TELEMETRY_PROVIDER_LOGS` | Provider for logs (default: `loki`). Currently supports `loki`. |
 | `TELEMETRY_PROVIDER_METRICS` | Provider for metrics (default: `prometheus`). Currently supports `prometheus`. |
 | `PROMETHEUS_HOST` | Base URL for Prometheus (e.g., `http://prometheus:9090`). Falls back to `GRAFANA_HOST` when unset. |
@@ -346,6 +347,7 @@ echo -n "https://your-grafana-instance.com" | gcloud secrets create grafana-host
 echo -n "your-gemini-api-key" | gcloud secrets create gemini-api-key --data-file=-
 echo -n "your-mongodb-uri" | gcloud secrets create mongodb-uri --data-file=-
 echo -n "http://prometheus:9090" | gcloud secrets create prometheus-host --data-file=-
+echo -n "your-webhook-api-key" | gcloud secrets create webhook-api-key --data-file=-
 ```
 
 Grant Cloud Run service account access to secrets:
@@ -400,6 +402,10 @@ gcloud secrets add-iam-policy-binding mongodb-uri \
 gcloud secrets add-iam-policy-binding prometheus-host \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
+
+gcloud secrets add-iam-policy-binding webhook-api-key \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
 ```
 
 Update Cloud Run service to use secrets:
@@ -419,7 +425,8 @@ gcloud run services update $SERVICE_ID \
     GRAFANA_HOST=grafana-host:latest,\
     GEMINI_API_KEY=gemini-api-key:latest,\
     MONGODB_URI=mongodb-uri:latest,\
-    PROMETHEUS_HOST=prometheus-host:latest
+    PROMETHEUS_HOST=prometheus-host:latest,\
+    WEBHOOK_API_KEY=webhook-api-key:latest
 ```
 
 **Step 5: Verify Deployment**
