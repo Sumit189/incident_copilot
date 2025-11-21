@@ -7,7 +7,8 @@ from typing import Any, Dict, Set
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse
 
 from agents.orchestrator import run_workflow
@@ -23,6 +24,25 @@ api = FastAPI(
     version="1.0.0",
     description="Webhook endpoint for triggering the Incident CoPilot workflow from Grafana alerts.",
 )
+
+API_KEY_NAME = "X-Webhook-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    expected_key = os.getenv("WEBHOOK_API_KEY")
+    if not expected_key:
+        logger.error("WEBHOOK_API_KEY environment variable is not set. Webhook is disabled.")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: Webhook security not configured.",
+        )
+
+    if api_key != expected_key:
+        raise HTTPException(
+            status_code=403,
+            detail="Could not validate credentials",
+        )
+    return api_key
 
 
 def _iso_now_utc() -> str:
@@ -105,11 +125,11 @@ def _default_dispatcher(
 workflow_dispatcher = _default_dispatcher
 
 
-@api.post("/webhook/trigger_agent", status_code=202)
+@api.post("/webhook/trigger_agent", status_code=202, dependencies=[Depends(verify_api_key)])
 async def grafana_webhook(payload: Dict[str, Any]) -> JSONResponse:
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="JSON body required")
-
+    
     service_name = _require_service_name(payload)
     user_id = _resolve_user_id(payload)
     end_time = _iso_now_utc()

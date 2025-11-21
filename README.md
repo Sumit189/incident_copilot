@@ -166,6 +166,7 @@ The system now supports pluggable telemetry providers for both logs and metrics.
 | `ON_CALL_ENGINEERS` | JSON list of target emails (defaults to a single address) |
 | `GEMINI_API_KEY` | API key for Gemini / Google Generative Language |
 | `WEBHOOK_USER_ID` | Label applied to webhook-triggered sessions |
+| `WEBHOOK_API_KEY` | **REQUIRED**. API key to protect the webhook endpoint. Requests must include `X-Webhook-API-Key` header. |
 | `POST_PROCESS_URL` | Optional URL to trigger after the automated triage workflow (e.g., PagerDuty, Slack webhook). Receives incident JSON payload. |
 | `TELEMETRY_PROVIDER_LOGS` | Provider for logs (default: `loki`). Currently supports `loki`. |
 | `TELEMETRY_PROVIDER_METRICS` | Provider for metrics (default: `prometheus`). Currently supports `prometheus`. |
@@ -210,6 +211,7 @@ Webhook requests must provide `service_name` (the Grafana label you want in the 
 ```
 curl -X POST http://localhost:8000/webhook/trigger_agent \
   -H "Content-Type: application/json" \
+  -H "X-Webhook-API-Key: <your-key>" \
   -d '{
         "service_name":"checkout-api",
         "lookup_window_seconds":3600
@@ -217,6 +219,20 @@ curl -X POST http://localhost:8000/webhook/trigger_agent \
 ```
 
  The endpoint stamps `service_name`, `user_id`, and the derived time window, then hands the payload to the orchestrator asynchronously so Grafana does not block.
+
+
+**Grafana Configuration:**
+In your Grafana Alerting Contact Point settings, enable **Optional Webhook Settings** and add the following **Custom Payload**:
+
+```json
+{ "service_name": "{{ .Vars.service_name }}" }
+```
+
+If `WEBHOOK_API_KEY` is set (Required), also add the **HTTP Header**:
+- Key: `X-Webhook-API-Key`
+- Value: `<your-key>`
+
+This ensures the `service_name` label from your alert rule is correctly passed to the agent.
 
 ### 3. Review artifacts
 - If `SAVE_OUTPUT=true`, `tools.email_helper` writes every outbound message to `output/email_<timestamp>.txt` so you can audit what Gmail received.
