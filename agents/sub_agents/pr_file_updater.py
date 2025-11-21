@@ -4,13 +4,23 @@ from google.adk.models.google_llm import Gemini
 
 from agents.github import create_or_update_file, apply_change_to_file, read_file_content, create_incident_branch
 from agents.config import RETRY_CONFIG
+from agents.utils.tool_config import get_tool_config
     
     
 def _create_file_updater_agent():
 
 
     return LlmAgent(
-        model=Gemini(model="gemini-2.5-flash-lite", retry_options=RETRY_CONFIG),
+        model=Gemini(
+            model="gemini-2.5-flash-lite",
+            retry_options=RETRY_CONFIG,
+            tool_config=get_tool_config(allowed_function_names=[
+                "create_incident_branch",
+                "apply_change_to_file",
+                "read_file_content",
+                "create_or_update_file",
+            ]),
+        ),
         name="FileUpdaterAgent",
         description="Create the incident branch and commit the generated patch via GitHub REST API.",
         instruction="""

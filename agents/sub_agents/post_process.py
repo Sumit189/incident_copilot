@@ -4,9 +4,14 @@ from google.adk.models.google_llm import Gemini
 
 from tools.incident_actions import publish_incident_report
 from agents.config import RETRY_CONFIG, MID_MODEL
+from agents.utils.tool_config import get_tool_config
 
 post_process_agent = LlmAgent(
-    model=Gemini(model=MID_MODEL, retry_options=RETRY_CONFIG),
+    model=Gemini(
+        model=MID_MODEL,
+        retry_options=RETRY_CONFIG,
+        tool_config=get_tool_config(allowed_function_names=["publish_incident_report"]),
+    ),
     name="PostProcessAgent",
     description="Handle post-incident reporting and notifications.",
     instruction="""

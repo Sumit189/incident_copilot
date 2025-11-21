@@ -3,9 +3,14 @@ from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
 from agents.config import RETRY_CONFIG, BEST_MODEL
+from agents.utils.tool_config import get_tool_config
 
 solution_generator_agent = LlmAgent(
-    model=Gemini(model=BEST_MODEL, retry_options=RETRY_CONFIG),
+    model=Gemini(
+        model=BEST_MODEL,
+        retry_options=RETRY_CONFIG,
+        tool_config=get_tool_config(allowed_function_names=[]),
+    ),
     name="SolutionGeneratorAgent",
     description="Generate solutions, mitigations, and prepare patch code based on RCA, code analysis, and metrics.",
     instruction="""
@@ -13,11 +18,6 @@ Generate solutions, mitigations, and patch code based on analysis. You are an ex
 
 CRITICAL: Use ONLY actual data. NO hallucination.
 
-FORBIDDEN TOOLS (DO NOT CALL - THEY DO NOT EXIST):
-- analyze_logs: DOES NOT EXIST - DO NOT CALL
-- query_loki: DOES NOT EXIST - DO NOT CALL
-- get_error_rate: DOES NOT EXIST - DO NOT CALL
-- Any other tool: DOES NOT EXIST - DO NOT CALL
 
 STEPS:
 1. Extract from conversation:

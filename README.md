@@ -78,7 +78,7 @@ ConditionalAgent: ConditionalPostProcess
 
 | Agent | Purpose | Tools / Concepts |
 | --- | --- | --- |
-| `IncidentDetectionAgent` | Executes LogQL queries against Loki, classifies severity and incident type hints. Uses **Gemini 2.5 Pro** for high-fidelity log analysis. | FunctionTool => `tools.telemetry_tool.fetch_telemetry` (logs + metrics) |
+| `IncidentDetectionAgent` | Executes LogQL queries against Loki, classifies severity and incident type hints. Uses **Gemini 2.5 Pro** for high-fidelity log analysis. Prioritizes logs and conditionally fetches metrics to minimize API calls. | FunctionTool => `tools.telemetry_tool.fetch_telemetry` (logs + metrics) |
 | `CodeAnalyzerAgent` | Launches the GitHub MCP server to search code and pull full files so patches reference real line numbers. Uses **Gemini 2.5 Pro** for deep code understanding. | MCP toolset, repo auto-detection |
 | `RCAAgent` | Converts log-derived evidence into explicit hypotheses with confidence + affected components. Uses **Gemini 2.5 Flash Lite** for fast pattern matching. | Context-grounded reasoning only |
 | `SolutionGeneratorAgent` | Generates mitigations and structured `patch.files_to_modify` payloads the PR workflow consumes. Uses **Gemini 2.5 Pro** for precise code generation. | JSON contract enforcement |
@@ -129,6 +129,7 @@ ConditionalAgent: ConditionalPostProcess
 - **Context Injection:** `ContextInjectionPlugin` pulls structured snapshots (incident detection, proposed solutions, PR metadata) via `agents.utils.state.get_agent_snapshot` and prepends that summary before `PostProcessAgent` runs so the final briefing always sees the upstream context.
 - **Persistent Mongo traces:** `custom_plugins/event_tracer_plugin.py` keeps per-agent history in session state and, when configured, mirrors the full run (user input + agent events + tool activity) into MongoDB for postmortems.
 - **Safety & Guardrails:** Code-level predicates skip entire branches (incident response, code analyzer, solution/PR) when prior agent snapshots indicate a skip, so we avoid unnecessary LLM calls while keeping the workflow safe.
+- **Agent Reliability:** Strict `ToolConfig` enforcement at the API level prevents "hallucinations" by whitelisting exactly which tools each agent can call (e.g., `RCAAgent` has `mode="NONE"` and physically cannot call tools).
 
 ### Supporting Components
 - `tools/email_html_formatter.py` converts the plain-text brief into a responsive HTML template with sections (incident summary, RCA, solution status, action plan, PR).

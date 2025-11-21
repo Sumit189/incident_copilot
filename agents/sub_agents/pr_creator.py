@@ -4,6 +4,7 @@ from google.adk.models.google_llm import Gemini
 
 from agents.github import create_pull_request
 from agents.config import RETRY_CONFIG
+from agents.utils.tool_config import get_tool_config
 
 
 def _create_pr_creator_agent():
@@ -12,7 +13,11 @@ def _create_pr_creator_agent():
     ]
 
     return LlmAgent(
-        model=Gemini(model="gemini-2.5-flash-lite", retry_options=RETRY_CONFIG),
+        model=Gemini(
+            model="gemini-2.5-flash-lite",
+            retry_options=RETRY_CONFIG,
+            tool_config=get_tool_config(allowed_function_names=["create_pull_request"]),
+        ),
         name="PRCreatorAgent",
         description="Open (or reuse) the pull request for the incident fix via GitHub REST API.",
         instruction="""
@@ -60,7 +65,7 @@ STEPS:
 CRITICAL RULES:
 - You MUST call create_pull_request after branch and files are ready (unless skipping for missing data)
 - Use the branch_name exactly as provided by FileUpdaterAgent
-- DO NOT attempt to modify files. File updates are handled by FileUpdaterAgent. Your ONLY job is to create the PR.
+
 - Include pr_url and pr_number so PostProcessAgent can reference them
 - If the helper returns status="error", propagate its message verbatim
 """,

@@ -3,9 +3,14 @@ from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 from tools.telemetry_tool import fetch_telemetry
 from agents.config import RETRY_CONFIG, LOOKUP_WINDOW_SECONDS, BEST_MODEL
+from agents.utils.tool_config import get_tool_config
 
 incident_detection_agent = LlmAgent(
-    model=Gemini(model=BEST_MODEL, retry_options=RETRY_CONFIG),
+    model=Gemini(
+        model=BEST_MODEL,
+        retry_options=RETRY_CONFIG,
+        tool_config=get_tool_config(allowed_function_names=["fetch_telemetry"]),
+    ),
     name="IncidentDetectionAgent",
     description="Analyze incident by querying logs directly (workflow triggered by alert).",
     instruction=f"""
@@ -21,24 +26,21 @@ STEPS:
    - Pass `lookup_window_seconds` to `fetch_telemetry` ONLY if you need to override the default.
    - The tool handles all timestamp calculations.
 
-2. Fetch Logs (query_type="logs"):
-   - ALWAYS include the service_name label: '{{service_name="<service_name>", level=~"error|warning|fatal|panic|warn"}}'
-   - Call fetch_telemetry(query_type="logs", query=<combined_query>).
+2. Fetch Telemetry (MINIMIZE CALLS):
+   - **Primary Source**: Fetch LOGS first. They usually contain the root cause.
+     - Query: '{{service_name="<service_name>", level=~"error|warning|fatal|panic|warn"}}'
+     - Call `fetch_telemetry(query_type="logs", ...)`
+   - **Secondary Source (Conditional)**: Fetch METRICS *only if* logs are inconclusive or suggest a resource issue (e.g., "OOMKilled", "Timeout").
+     - Do NOT fetch metrics by default.
+     - If fetching metrics, fetch ONLY the relevant one (e.g., memory for OOM).
+   - **Goal**: Get enough data to detect the incident in **1 or 2 tool calls maximum**. Do not loop.
 
-3. Fetch Metrics (query_type="metrics") - OPTIONAL but RECOMMENDED:
-   - If you suspect resource issues, query standard metrics.
-   - Examples (PromQL):
-     - CPU: 'rate(process_cpu_seconds_total{{service_name="<service_name>"}}[1m])'
-     - Memory: 'process_resident_memory_bytes{{service_name="<service_name>"}}'
-     - Error Rate: 'rate(http_requests_total{{service_name="<service_name>", status=~"5.."}}[1m])'
-   - Call fetch_telemetry(query_type="metrics", query=<promql_query>).
-
-4. Analyze Data:
+3. Analyze Data:
    - Logs: Count errors/warnings, identify patterns/symptoms.
    - Metrics: Look for spikes, saturation, or anomalies correlated with log errors.
    - Severity: Critical (service down/high errors) | High (user impact) | Medium (partial) | Low (minor).
 
-5. Return JSON ONLY (no text, no questions):
+4. Return JSON ONLY (no text, no questions):
 {{
   "incident_detected": true,
   "severity": "Critical|High|Medium|Low",

@@ -3,9 +3,14 @@ from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
 from agents.config import RETRY_CONFIG, DEFAULT_MODEL
+from agents.utils.tool_config import get_tool_config
 
 rca_agent = LlmAgent(
-    model=Gemini(model=DEFAULT_MODEL, retry_options=RETRY_CONFIG),
+    model=Gemini(
+        model=DEFAULT_MODEL,
+        retry_options=RETRY_CONFIG,
+        tool_config=get_tool_config(allowed_function_names=[]),
+    ),
     name="RCAAgent",
     description="Perform root cause analysis using logs and summaries from previous agents.",
     instruction="""
@@ -46,7 +51,7 @@ STEPS:
 }
 
 CRITICAL RULES:
-- DO NOT call any tools (none are provided).
+
 - All data comes from Incident Detection Agent output in conversation history.
 - Extract data ONLY from Incident Detection Agent JSON output.
 - Use error_summary.error_types, error_summary.warning_types, and initial_symptoms for evidence.

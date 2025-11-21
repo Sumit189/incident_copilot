@@ -10,6 +10,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams, StdioServerParameters
 from agents.config import GITHUB_TOKEN, GITHUB_REPO, RETRY_CONFIG, BEST_MODEL
 from agents.github import get_owner_repo, get_owner_repo_source
+from agents.utils.tool_config import get_tool_config
 
 _github_mcp_toolset = None
 
@@ -154,7 +155,11 @@ REPOSITORY CONFIGURATION:
         step2_example = ""
     
     return LlmAgent(
-        model=Gemini(model=BEST_MODEL, retry_options=RETRY_CONFIG),
+        model=Gemini(
+            model=BEST_MODEL,
+            retry_options=RETRY_CONFIG,
+            tool_config=get_tool_config(allowed_function_names=["search_code", "get_file_contents"]),
+        ),
         name="CodeAnalyzerAgent",
         description="Find problematic code locations using GitHub MCP and LLM analysis.",
         instruction=f"""

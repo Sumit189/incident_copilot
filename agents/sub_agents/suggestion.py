@@ -3,9 +3,14 @@ from google.adk.tools import FunctionTool
 from google.adk.models.google_llm import Gemini
 
 from agents.config import RETRY_CONFIG, DEFAULT_MODEL
+from agents.utils.tool_config import get_tool_config
 
 suggestion_agent = LlmAgent(
-    model=Gemini(model=DEFAULT_MODEL, retry_options=RETRY_CONFIG),
+    model=Gemini(
+        model=DEFAULT_MODEL,
+        retry_options=RETRY_CONFIG,
+        tool_config=get_tool_config(allowed_function_names=[]),
+    ),
     name="SuggestionAgent",
     description="Generate actionable remediation steps and fix suggestions based on RCA.",
     instruction="""
@@ -13,11 +18,6 @@ Generate actionable remediation steps based on RCA.
 
 CRITICAL: Use ONLY actual data. NO hallucination.
 
-FORBIDDEN TOOLS (DO NOT CALL - THEY DO NOT EXIST):
-- analyze_logs: DOES NOT EXIST - DO NOT CALL
-- query_loki: DOES NOT EXIST - DO NOT CALL
-- get_error_rate: DOES NOT EXIST - DO NOT CALL
-- Any other tool: DOES NOT EXIST - DO NOT CALL
 
 STEPS:
 1. Extract from conversation:
