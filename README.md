@@ -161,7 +161,7 @@ The system now supports pluggable telemetry providers for both logs and metrics.
 | Variable | Purpose |
 | --- | --- |
 | `GRAFANA_HOST`, `GRAFANA_BASICAUTH` | HTTPS endpoint + `user:password` used to query Loki |
-| `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_BASE_BRANCH`, `GIT_REPO_PATH` | Grants repo access for MCP + REST commits |
+| `GITHUB_TOKEN`, `GITHUB_REPO`, `GITHUB_BASE_BRANCH`, `GIT_REPO_PATH` | Grants repo access for MCP + REST commits. `GITHUB_REPO` can be overridden by webhook payload. |
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_USER_EMAIL` | OAuth credentials for Gmail send API |
 | `ON_CALL_ENGINEERS` | JSON list of target emails (defaults to a single address) |
 | `GEMINI_API_KEY` | API key for Gemini / Google Generative Language |
@@ -207,7 +207,7 @@ uvicorn app:api --host 0.0.0.0 --port 8000
 
 ### 2. Trigger via webhook (hook it to Grafana)
 
-Webhook requests must provide `service_name` (the Grafana label you want in the LogQL query). `lookup_window_seconds` is optional; if omitted the webhook defaults to 900 seconds (15 minutes). The service treats the arrival timestamp as `end_time` and derives `start_time = end_time - lookup_window_seconds`. Additional fields (like `title`) are safely ignored after logging, so send only the keys you actually rely on.
+Webhook requests must provide `service_name` (the Grafana label you want in the LogQL query). `lookup_window_seconds` is optional; if omitted the webhook defaults to 900 seconds (15 minutes). You can also optionally provide `github_repo` and `github_base_branch` to override the environment variables for a specific request. The service treats the arrival timestamp as `end_time` and derives `start_time = end_time - lookup_window_seconds`. Additional fields (like `title`) are safely ignored after logging, so send only the keys you actually rely on.
 
 ```
 curl -X POST http://localhost:8000/webhook/trigger_agent \
@@ -215,7 +215,9 @@ curl -X POST http://localhost:8000/webhook/trigger_agent \
   -H "X-Webhook-API-Key: <your-key>" \
   -d '{
         "service_name":"checkout-api",
-        "lookup_window_seconds":3600
+        "lookup_window_seconds":3600,
+        "github_repo": "owner/repo",
+        "github_base_branch": "main"
       }'
 ```
 
@@ -263,6 +265,7 @@ This ensures the `service_name` label from your alert rule is correctly passed t
 - `tests/test_email_helper_status.py` guarantees the email status cache behaves even when the LLM handles the tool call.
 - For integration testing, point `GRAFANA_HOST` to a staging Loki instance and replay recorded incidents; every run is deterministic for the same logs.
 - Simulate Prometheus metrics locally via `python3 scripts/mock_prometheus.py`, set `PROMETHEUS_HOST=http://localhost:9090`, and tweak `MOCK_CPU`, `MOCK_RAM`, or `MOCK_NETWORK` to cover different scenarios.
+- All test cases in this repository are written by AI to speed up the development.
 
 ## Deployment
 
@@ -521,7 +524,7 @@ curl -X POST $SERVICE_URL/webhook/trigger_agent \
 - Set up alerting for failed workflows in Cloud Monitoring
 
 ## Troubleshooting
-- Missing `GITHUB_REPO`: Code Analyzer quietly sets `mcp_available=false`; patch generation degrades to log-based suggestions instead of failing.
+- Missing `GITHUB_REPO`: If not in env OR webhook, Code Analyzer quietly sets `mcp_available=false`; patch generation degrades to log-based suggestions instead of failing.
 - Gmail refresh token errors (`invalid_grant`): check the helper logs; instructions point you to regenerate the token.
 - Loki access denied: confirm `GRAFANA_BASICAUTH` is `username:password` (the helper encodes it for you).
 

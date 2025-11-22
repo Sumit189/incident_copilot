@@ -45,6 +45,8 @@ async def run_workflow(
     end_time: Optional[str] = None,
     lookup_window_seconds: Optional[int] = None,
     timeout_seconds: int = 300,
+    github_repo: Optional[str] = None,
+    github_base_branch: Optional[str] = None,
 ) -> Dict[str, Any]:
 
     reset_email_status()
@@ -64,6 +66,8 @@ async def run_workflow(
     payload = {
         "service_name": service_name,
         "lookup_window_seconds": lookup_window_seconds,
+        "github_repo": github_repo,
+        "github_base_branch": github_base_branch,
     }
     content = types.Content(parts=[types.Part(text=json.dumps(payload))], role="user")
 
@@ -130,6 +134,8 @@ async def run_workflow(
             "start_time": start_time,
             "end_time": normalized_end_time,
             "lookup_window_seconds": lookup_window_seconds,
+            "github_repo": github_repo,
+            "github_base_branch": github_base_branch,
         },
         "incident_detected": incident_detected,
         "status": status,

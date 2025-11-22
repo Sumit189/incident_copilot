@@ -82,13 +82,22 @@ def _parse_lookup_window(payload: Dict[str, Any]) -> int:
     return lookup
 
 
-async def _run_workflow_task(user_id: str, service_name: str, end_time: str, lookup_window_seconds: int) -> None:
+async def _run_workflow_task(
+    user_id: str,
+    service_name: str,
+    end_time: str,
+    lookup_window_seconds: int,
+    github_repo: str = None,
+    github_base_branch: str = None,
+) -> None:
     try:
         await run_workflow(
             user_id=user_id,
             service_name=service_name,
             end_time=end_time,
             lookup_window_seconds=lookup_window_seconds,
+            github_repo=github_repo,
+            github_base_branch=github_base_branch,
         )
     except Exception:  # pragma: no cover - logged for observability
         logger.exception(
@@ -105,7 +114,14 @@ async def _run_workflow_task(user_id: str, service_name: str, end_time: str, loo
 
 
 def _default_dispatcher(
-    *, user_id: str, service_name: str, end_time: str, lookup_window_seconds: int, payload: Dict[str, Any]
+    *,
+    user_id: str,
+    service_name: str,
+    end_time: str,
+    lookup_window_seconds: int,
+    payload: Dict[str, Any],
+    github_repo: str = None,
+    github_base_branch: str = None,
 ) -> asyncio.Task:
     logger.info(
         "Grafana webhook accepted for service=%s user_id=%s end_time=%s lookup_window_seconds=%s status=%s",
@@ -116,7 +132,14 @@ def _default_dispatcher(
         payload.get("status"),
     )
     task = asyncio.create_task(
-        _run_workflow_task(user_id, service_name, end_time, lookup_window_seconds)
+        _run_workflow_task(
+            user_id,
+            service_name,
+            end_time,
+            lookup_window_seconds,
+            github_repo,
+            github_base_branch,
+        )
     )
     _active_tasks.add(task)
     return task
@@ -135,11 +158,16 @@ async def grafana_webhook(payload: Dict[str, Any]) -> JSONResponse:
     end_time = _iso_now_utc()
     lookup_window_seconds = _parse_lookup_window(payload)
 
+    github_repo = payload.get("github_repo")
+    github_base_branch = payload.get("github_base_branch")
+
     task = workflow_dispatcher(
         user_id=user_id,
         service_name=service_name,
         end_time=end_time,
         lookup_window_seconds=lookup_window_seconds,
+        github_repo=github_repo,
+        github_base_branch=github_base_branch,
         payload=payload,
     )
 
