@@ -1,0 +1,316 @@
+[
+    {
+        "name": "Fix Null Pointer Exception",
+        "type": "patch",
+        "description": "Fix a NPE in PaymentService.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"NullPointerException at com.example.PaymentService.process(PaymentService.java:42)\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "NullPointerException at com.example.PaymentService.process(PaymentService.java:42)"
+                    }
+                }
+            ],
+            "files": {
+                "src/main/java/com/example/PaymentService.java": "public void process(Payment p) {\n    if (p.amount > 100) {\n        charge(p);\n    }\n}"
+            }
+        },
+        "input_context": {
+            "Incident Detection Output": {
+                "incident_detected": true,
+                "incident_type_hint": "code_issue"
+            },
+            "RCA Output": {
+                "root_causes": [
+                    {
+                        "hypothesis": "NullPointerException",
+                        "confidence": "high"
+                    }
+                ],
+                "most_likely": "Code bug in PaymentService"
+            },
+            "Code Analyzer Output": {
+                "problematic_files": [
+                    {
+                        "path": "src/main/java/com/example/PaymentService.java",
+                        "function_name": "process",
+                        "line_start": 1,
+                        "line_end": 5,
+                        "issue_description": "NullPointerException possibility",
+                        "relevance_score": 10,
+                        "code_snippet": "public void process(Payment p) {\n    if (p.amount > 100) {\n        charge(p);\n    }\n}"
+                    }
+                ]
+            },
+            "Suggestion Output": {
+                "suggestions": [
+                    "Add null check"
+                ]
+            }
+        },
+        "expected_output": {
+            "patch_contains": [
+                "if (p != null && p.amount > 100)"
+            ],
+            "files_touched": [
+                "src/main/java/com/example/PaymentService.java"
+            ]
+        }
+    },
+    {
+        "name": "Fix Memory Leak in Cache",
+        "type": "patch",
+        "description": "Fix memory leak by adding cache eviction logic.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"OutOfMemoryError: Java heap space at com.example.CacheManager.get(CacheManager.java:15)\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "OutOfMemoryError: Java heap space at com.example.CacheManager.get(CacheManager.java:15)"
+                    }
+                }
+            ],
+            "files": {
+                "src/main/java/com/example/CacheManager.java": "public class CacheManager {\n    private Map<String, Object> cache = new HashMap<>();\n    \n    public Object get(String key) {\n        return cache.get(key);\n    }\n    \n    public void put(String key, Object value) {\n        cache.put(key, value);\n    }\n}"
+            }
+        },
+        "input_context": {
+            "Incident Detection Output": {
+                "incident_detected": true,
+                "incident_type_hint": "code_issue"
+            },
+            "RCA Output": {
+                "root_causes": [
+                    {
+                        "hypothesis": "Memory Leak",
+                        "confidence": "high"
+                    }
+                ],
+                "most_likely": "Memory leak in CacheManager"
+            },
+            "Code Analyzer Output": {
+                "problematic_files": [
+                    {
+                        "path": "src/main/java/com/example/CacheManager.java",
+                        "function_name": "put",
+                        "line_start": 7,
+                        "line_end": 9,
+                        "issue_description": "Unbounded cache growth",
+                        "relevance_score": 10,
+                        "code_snippet": "public void put(String key, Object value) {\n        cache.put(key, value);\n    }"
+                    }
+                ]
+            },
+            "Suggestion Output": {
+                "suggestions": [
+                    "Add cache eviction policy",
+                    "Limit cache size"
+                ]
+            }
+        },
+        "expected_output": {
+            "patch_contains": [
+                "evict",
+                "size",
+                "limit"
+            ],
+            "files_touched": [
+                "src/main/java/com/example/CacheManager.java"
+            ]
+        }
+    },
+    {
+        "name": "Fix Array Index Out of Bounds",
+        "type": "patch",
+        "description": "Fix ArrayIndexOutOfBoundsException by adding bounds check.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"ArrayIndexOutOfBoundsException at com.example.DataProcessor.process(DataProcessor.java:28)\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "ArrayIndexOutOfBoundsException at com.example.DataProcessor.process(DataProcessor.java:28)"
+                    }
+                }
+            ],
+            "files": {
+                "src/main/java/com/example/DataProcessor.java": "public class DataProcessor {\n    public void process(int[] data, int index) {\n        int value = data[index];\n        System.out.println(value);\n    }\n}"
+            }
+        },
+        "input_context": {
+            "Incident Detection Output": {
+                "incident_detected": true,
+                "incident_type_hint": "code_issue"
+            },
+            "RCA Output": {
+                "root_causes": [
+                    {
+                        "hypothesis": "Index Out of Bounds",
+                        "confidence": "high"
+                    }
+                ],
+                "most_likely": "Unsafe array access in DataProcessor"
+            },
+            "Code Analyzer Output": {
+                "problematic_files": [
+                    {
+                        "path": "src/main/java/com/example/DataProcessor.java",
+                        "function_name": "process",
+                        "line_start": 2,
+                        "line_end": 5,
+                        "issue_description": "Unsafe array access",
+                        "relevance_score": 10,
+                        "code_snippet": "public void process(int[] data, int index) {\n        int value = data[index];\n        System.out.println(value);\n    }"
+                    }
+                ]
+            },
+            "Suggestion Output": {
+                "suggestions": [
+                    "Check index bounds before access"
+                ]
+            }
+        },
+        "expected_output": {
+            "patch_contains": [
+                "if (index >= 0 && index < data.length)",
+                "data.length"
+            ],
+            "files_touched": [
+                "src/main/java/com/example/DataProcessor.java"
+            ]
+        }
+    },
+    {
+        "name": "Add Error Handling for Network Calls",
+        "type": "patch",
+        "description": "Add proper error handling and retry logic for network timeouts.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Request timeout after 30s to external-api at com.example.ApiClient.call(ApiClient.java:45)\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Request timeout after 30s to external-api at com.example.ApiClient.call(ApiClient.java:45)"
+                    }
+                }
+            ],
+            "files": {
+                "src/main/java/com/example/ApiClient.java": "public class ApiClient {\n    public String call(String url) throws IOException {\n        URL u = new URL(url);\n        HttpURLConnection conn = (HttpURLConnection) u.openConnection();\n        conn.setConnectTimeout(30000);\n        return readResponse(conn);\n    }\n}"
+            }
+        },
+        "input_context": {
+            "Incident Detection Output": {
+                "incident_detected": true,
+                "incident_type_hint": "infrastructure_issue"
+            },
+            "RCA Output": {
+                "root_causes": [
+                    {
+                        "hypothesis": "Network Timeout",
+                        "confidence": "high"
+                    }
+                ],
+                "most_likely": "Missing error handling in ApiClient"
+            },
+            "Code Analyzer Output": {
+                "problematic_files": [
+                    {
+                        "path": "src/main/java/com/example/ApiClient.java",
+                        "function_name": "call",
+                        "line_start": 2,
+                        "line_end": 7,
+                        "issue_description": "Missing timeout handling and retries",
+                        "relevance_score": 10,
+                        "code_snippet": "public String call(String url) throws IOException {\n        URL u = new URL(url);\n        HttpURLConnection conn = (HttpURLConnection) u.openConnection();\n        conn.setConnectTimeout(30000);\n        return readResponse(conn);\n    }"
+                    }
+                ]
+            },
+            "Suggestion Output": {
+                "suggestions": [
+                    "Add try-catch block",
+                    "Implement retry logic"
+                ]
+            }
+        },
+        "expected_output": {
+            "patch_contains": [
+                "try",
+                "catch",
+                "retry",
+                "IOException"
+            ],
+            "files_touched": [
+                "src/main/java/com/example/ApiClient.java"
+            ]
+        }
+    },
+    {
+        "name": "Fix Division by Zero",
+        "type": "patch",
+        "description": "Add check to prevent division by zero error.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"ArithmeticException: / by zero at com.example.Calculator.divide(Calculator.java:12)\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "ArithmeticException: / by zero at com.example.Calculator.divide(Calculator.java:12)"
+                    }
+                }
+            ],
+            "files": {
+                "src/main/java/com/example/Calculator.java": "public class Calculator {\n    public double divide(double a, double b) {\n        return a / b;\n    }\n}"
+            }
+        },
+        "input_context": {
+            "Incident Detection Output": {
+                "incident_detected": true,
+                "incident_type_hint": "code_issue"
+            },
+            "RCA Output": {
+                "root_causes": [
+                    {
+                        "hypothesis": "Division by Zero",
+                        "confidence": "high"
+                    }
+                ],
+                "most_likely": "Unsafe division in Calculator"
+            },
+            "Code Analyzer Output": {
+                "problematic_files": [
+                    {
+                        "path": "src/main/java/com/example/Calculator.java",
+                        "function_name": "divide",
+                        "line_start": 2,
+                        "line_end": 4,
+                        "issue_description": "Potential division by zero",
+                        "relevance_score": 10,
+                        "code_snippet": "public double divide(double a, double b) {\n        return a / b;\n    }"
+                    }
+                ]
+            },
+            "Suggestion Output": {
+                "suggestions": [
+                    "Check if divisor is zero"
+                ]
+            }
+        },
+        "expected_output": {
+            "patch_contains": [
+                "if (b == 0",
+                "b != 0"
+            ],
+            "files_touched": [
+                "src/main/java/com/example/Calculator.java"
+            ]
+        }
+    }
+]

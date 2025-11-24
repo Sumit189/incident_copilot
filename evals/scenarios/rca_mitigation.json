@@ -1,0 +1,305 @@
+[
+    {
+        "name": "Database Connection Failure",
+        "type": "rca",
+        "description": "Database connection pool exhaustion leading to 500 errors.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Timeout getting connection from pool\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Timeout getting connection from pool"
+                    }
+                }
+            ],
+            "metrics": {
+                "db_connections": [
+                    {
+                        "metric": {
+                            "instance": "db-primary"
+                        },
+                        "values": [
+                            [
+                                1678886400,
+                                "100"
+                            ],
+                            [
+                                1678886460,
+                                "100"
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "input_context": {
+            "incident_detected": true,
+            "severity": "High",
+            "affected_services": [
+                "db-primary"
+            ],
+            "initial_symptoms": [
+                "Timeout getting connection from pool"
+            ],
+            "error_summary": {
+                "total_errors": 1,
+                "error_types": [
+                    "Timeout getting connection from pool"
+                ]
+            },
+            "incident_type_hint": "infrastructure_issue"
+        },
+        "expected_output": {
+            "rca_keywords": [
+                "connection pool",
+                "exhaustion",
+                "timeout"
+            ],
+            "mitigation_keywords": [
+                "increase pool size",
+                "restart",
+                "scale"
+            ]
+        }
+    },
+    {
+        "name": "Memory Leak Root Cause",
+        "type": "rca",
+        "description": "OutOfMemoryError caused by memory leak in cache management.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"OutOfMemoryError: Java heap space\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "OutOfMemoryError: Java heap space"
+                    }
+                },
+                {
+                    "timestamp": "1678887000000000000",
+                    "log": "{\"level\": \"warn\", \"message\": \"Memory usage: 82%\"}",
+                    "parsed": {
+                        "level": "warn",
+                        "message": "Memory usage: 82%"
+                    }
+                }
+            ],
+            "metrics": {
+                "memory_usage": [
+                    {
+                        "metric": {
+                            "instance": "app-server-01"
+                        },
+                        "values": [
+                            [
+                                1678886400,
+                                "75"
+                            ],
+                            [
+                                1678887000,
+                                "82"
+                            ],
+                            [
+                                1678887600,
+                                "95"
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "input_context": {
+            "incident_detected": true,
+            "severity": "High",
+            "affected_services": [
+                "app-server-01"
+            ],
+            "initial_symptoms": [
+                "OutOfMemoryError: Java heap space",
+                "Memory usage: 82%"
+            ],
+            "error_summary": {
+                "total_errors": 1,
+                "error_types": [
+                    "OutOfMemoryError: Java heap space"
+                ]
+            },
+            "incident_type_hint": "code_issue"
+        },
+        "expected_output": {
+            "rca_keywords": [
+                "memory leak",
+                "heap",
+                "cache",
+                "not released"
+            ],
+            "mitigation_keywords": [
+                "restart",
+                "increase heap",
+                "fix cache",
+                "garbage collection"
+            ]
+        }
+    },
+    {
+        "name": "Network Timeout Root Cause",
+        "type": "rca",
+        "description": "External API timeouts causing cascading failures.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Request timeout after 30s to external-api\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Request timeout after 30s to external-api"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Request timeout after 30s to external-api\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Request timeout after 30s to external-api"
+                    }
+                }
+            ],
+            "metrics": {
+                "request_timeout_rate": [
+                    {
+                        "metric": {
+                            "service": "api-gateway"
+                        },
+                        "values": [
+                            [
+                                1678886400,
+                                "0.10"
+                            ],
+                            [
+                                1678886460,
+                                "0.25"
+                            ],
+                            [
+                                1678886520,
+                                "0.40"
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "input_context": {
+            "incident_detected": true,
+            "severity": "High",
+            "affected_services": [
+                "api-gateway"
+            ],
+            "initial_symptoms": [
+                "Request timeout after 30s to external-api"
+            ],
+            "error_summary": {
+                "total_errors": 2,
+                "error_types": [
+                    "Request timeout after 30s to external-api"
+                ]
+            },
+            "incident_type_hint": "infrastructure_issue"
+        },
+        "expected_output": {
+            "rca_keywords": [
+                "external api",
+                "timeout",
+                "network",
+                "connectivity"
+            ],
+            "mitigation_keywords": [
+                "retry",
+                "circuit breaker",
+                "fallback",
+                "timeout configuration"
+            ]
+        }
+    },
+    {
+        "name": "Authentication Failure Root Cause",
+        "type": "rca",
+        "description": "Authentication service misconfiguration causing widespread failures.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Authentication failed: Invalid credentials\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Authentication failed: Invalid credentials"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Authentication failed: Invalid credentials\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Authentication failed: Invalid credentials"
+                    }
+                }
+            ],
+            "metrics": {
+                "auth_failure_rate": [
+                    {
+                        "metric": {
+                            "service": "auth-service"
+                        },
+                        "values": [
+                            [
+                                1678886400,
+                                "0.02"
+                            ],
+                            [
+                                1678886460,
+                                "0.35"
+                            ],
+                            [
+                                1678886520,
+                                "0.50"
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "input_context": {
+            "incident_detected": true,
+            "severity": "High",
+            "affected_services": [
+                "auth-service"
+            ],
+            "initial_symptoms": [
+                "Authentication failed: Invalid credentials"
+            ],
+            "error_summary": {
+                "total_errors": 2,
+                "error_types": [
+                    "Authentication failed: Invalid credentials"
+                ]
+            },
+            "incident_type_hint": "config_issue"
+        },
+        "expected_output": {
+            "rca_keywords": [
+                "authentication",
+                "credentials",
+                "config",
+                "token"
+            ],
+            "mitigation_keywords": [
+                "check config",
+                "verify credentials",
+                "restart service",
+                "rollback"
+            ]
+        }
+    }
+]

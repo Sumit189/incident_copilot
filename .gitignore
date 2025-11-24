@@ -11,3 +11,4 @@ output/
 *.json
 .env
 node_modules/
+!evals/scenarios/*.json

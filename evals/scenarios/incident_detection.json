@@ -1,0 +1,343 @@
+[
+    {
+        "name": "Infra Spike Scenario",
+        "type": "detection",
+        "description": "High CPU usage indicating an infrastructure issue.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"CPU usage critical: 95%\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "CPU usage critical: 95%"
+                    }
+                }
+            ],
+            "metrics": {
+                "cpu_usage": [
+                    {
+                        "metric": {
+                            "instance": "server-01"
+                        },
+                        "values": [
+                            [
+                                1678886400,
+                                "95"
+                            ],
+                            [
+                                1678886460,
+                                "96"
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "infrastructure_issue",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Code Regression Scenario",
+        "type": "detection",
+        "description": "Increased error rate after a deployment.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"NullPointerException in PaymentService\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "NullPointerException in PaymentService"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"NullPointerException in PaymentService\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "NullPointerException in PaymentService"
+                    }
+                }
+            ],
+            "metrics": {
+                "error_rate": [
+                    {
+                        "metric": {
+                            "service": "payment"
+                        },
+                        "values": [
+                            [
+                                1678886400,
+                                "0.05"
+                            ],
+                            [
+                                1678886460,
+                                "0.15"
+                            ]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "code_issue",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Transient Noise Scenario",
+        "type": "detection",
+        "description": "A single error log that doesn't indicate an incident.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Connection reset by peer\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Connection reset by peer"
+                    }
+                }
+            ],
+            "metrics": {}
+        },
+        "expected_output": {
+            "classification": "not_incident",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Memory Leak Scenario",
+        "type": "detection",
+        "description": "Gradually increasing memory usage indicating a memory leak.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"warn\", \"message\": \"Memory usage: 75%\"}",
+                    "parsed": {
+                        "level": "warn",
+                        "message": "Memory usage: 75%"
+                    }
+                },
+                {
+                    "timestamp": "1678887000000000000",
+                    "log": "{\"level\": \"warn\", \"message\": \"Memory usage: 82%\"}",
+                    "parsed": {
+                        "level": "warn",
+                        "message": "Memory usage: 82%"
+                    }
+                },
+                {
+                    "timestamp": "1678887600000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"OutOfMemoryError: Java heap space\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "OutOfMemoryError: Java heap space"
+                    }
+                }
+            ],
+            "metrics": {
+                "memory_usage": [
+                    {
+                        "metric": {
+                            "instance": "app-server-01"
+                        },
+                        "values": [
+                            [1678886400, "75"],
+                            [1678887000, "82"],
+                            [1678887600, "95"]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "code_issue",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Network Timeout Scenario",
+        "type": "detection",
+        "description": "Multiple timeout errors indicating network connectivity issues.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Request timeout after 30s to external-api\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Request timeout after 30s to external-api"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Request timeout after 30s to external-api\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Request timeout after 30s to external-api"
+                    }
+                },
+                {
+                    "timestamp": "1678886520000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Request timeout after 30s to external-api\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Request timeout after 30s to external-api"
+                    }
+                }
+            ],
+            "metrics": {
+                "request_timeout_rate": [
+                    {
+                        "metric": {
+                            "service": "api-gateway"
+                        },
+                        "values": [
+                            [1678886400, "0.10"],
+                            [1678886460, "0.25"],
+                            [1678886520, "0.40"]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "infrastructure_issue",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Authentication Failure Scenario",
+        "type": "detection",
+        "description": "Spike in authentication failures indicating potential security issue or config problem.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Authentication failed: Invalid credentials\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Authentication failed: Invalid credentials"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Authentication failed: Invalid credentials\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Authentication failed: Invalid credentials"
+                    }
+                }
+            ],
+            "metrics": {
+                "auth_failure_rate": [
+                    {
+                        "metric": {
+                            "service": "auth-service"
+                        },
+                        "values": [
+                            [1678886400, "0.02"],
+                            [1678886460, "0.35"],
+                            [1678886520, "0.50"]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "code_issue",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Rate Limiting Scenario",
+        "type": "detection",
+        "description": "Rate limit errors indicating quota exhaustion.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Rate limit exceeded: 429 Too Many Requests\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Rate limit exceeded: 429 Too Many Requests"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Rate limit exceeded: 429 Too Many Requests\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Rate limit exceeded: 429 Too Many Requests"
+                    }
+                }
+            ],
+            "metrics": {
+                "rate_limit_errors": [
+                    {
+                        "metric": {
+                            "service": "api-service"
+                        },
+                        "values": [
+                            [1678886400, "5"],
+                            [1678886460, "25"],
+                            [1678886520, "50"]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "code_issue",
+            "confidence": "high"
+        }
+    },
+    {
+        "name": "Configuration Error Scenario",
+        "type": "detection",
+        "description": "Configuration parsing errors after deployment.",
+        "telemetry": {
+            "logs": [
+                {
+                    "timestamp": "1678886400000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Failed to parse config: Invalid database URL format\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Failed to parse config: Invalid database URL format"
+                    }
+                },
+                {
+                    "timestamp": "1678886460000000000",
+                    "log": "{\"level\": \"error\", \"message\": \"Failed to parse config: Invalid database URL format\"}",
+                    "parsed": {
+                        "level": "error",
+                        "message": "Failed to parse config: Invalid database URL format"
+                    }
+                }
+            ],
+            "metrics": {
+                "startup_failures": [
+                    {
+                        "metric": {
+                            "service": "app-service"
+                        },
+                        "values": [
+                            [1678886400, "1"],
+                            [1678886460, "3"],
+                            [1678886520, "5"]
+                        ]
+                    }
+                ]
+            }
+        },
+        "expected_output": {
+            "classification": "code_issue",
+            "confidence": "high"
+        }
+    }
+]
