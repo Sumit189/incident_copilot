@@ -118,6 +118,26 @@ class EventTracerPlugin(BasePlugin):
             "raw_actions": self.safe(actions),
         }
 
+    def _get_agent_events(self, events, invocation_id, agent_name):
+        """
+        Filter the raw session events to only those emitted by the current agent
+        during this invocation.
+        """
+        if not events:
+            return []
+
+        filtered = []
+        for ev in events:
+            if getattr(ev, "invocation_id", None) != invocation_id:
+                continue
+
+            if getattr(ev, "author", None) != agent_name:
+                continue
+
+            filtered.append(ev)
+
+        return filtered
+
     # ------------------------------
     # User message logging
     # ------------------------------
@@ -155,11 +175,13 @@ class EventTracerPlugin(BasePlugin):
         events = getattr(session, "events", []) or []
         invocation_id = callback_context.invocation_id
 
-        serialized = [
-            self.serialize_event(ev)
-            for ev in events
-            if getattr(ev, "invocation_id", None) == invocation_id
-        ]
+        agent_events = self._get_agent_events(
+            events,
+            invocation_id=invocation_id,
+            agent_name=agent.name,
+        )
+
+        serialized = [self.serialize_event(ev) for ev in agent_events]
 
         trace = {
             "agent": agent.name,
