@@ -8,7 +8,6 @@ __pycache__/
 .Python
 .venv/
 output/
-*.json
 .env
 node_modules/
 !evals/scenarios/*.json
