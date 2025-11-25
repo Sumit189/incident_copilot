@@ -189,13 +189,13 @@ cp .env.example .env  # if you keep templates
 ```
 
 ### GitHub MCP helper
-The Code Analyzer launches `@modelcontextprotocol/server-github` through `npx`. Install the dependency in this repo (locks live in `package-lock.json`):
+The Code Analyzer launches `@modelcontextprotocol/server-github` locally. Install the dependency so `node_modules/.bin/server-github` exists in the repo (locks live in `package-lock.json`):
 
 ```
-npm install
+npm install @modelcontextprotocol/server-github
 ```
 
-Cloud Run installations use `packages.txt` (lists `nodejs` + `npm`) plus this `package.json` so buildpacks provision the same tooling automatically.
+The project’s Dockerfile installs Node.js and runs `npm install --omit=dev`, so Cloud Run images always contain the MCP binary even if `npx` isn’t available at runtime.
 
 ## Running The Workflow
 
@@ -299,13 +299,20 @@ gcloud services enable containerregistry.googleapis.com
 gcloud services enable secretmanager.googleapis.com
 ```
 
-`packages.txt` (repo root) makes the buildpack apt-install `nodejs`/`npm`, so `npx` can launch the GitHub MCP server. `Procfile` tells the runtime to start FastAPI via `uvicorn app:api --host 0.0.0.0 --port $PORT`.
+`packages.txt` previously installed `nodejs`/`npm` for buildpacks, but the recommended flow now uses the included `Dockerfile`, which installs Node and runs `npm install @modelcontextprotocol/server-github` inside the container image.
 
-**Step 2: Build & Deploy from Source (Cloud Run)**
+**Step 2: Build the Container Image (Cloud Build)**
+
+```bash
+gcloud builds submit \
+  --tag gcr.io/$PROJECT_ID/$SERVICE_ID
+```
+
+**Step 3: Deploy the Image to Cloud Run**
 
 ```bash
 gcloud run deploy $SERVICE_ID \
-  --source . \
+  --image gcr.io/$PROJECT_ID/$SERVICE_ID \
   --region $REGION \
   --allow-unauthenticated \
   --memory 2Gi \
@@ -321,7 +328,7 @@ gcloud run deploy $SERVICE_ID \
 - The `--no-cpu-throttling` flag is **required** - it ensures CPU remains allocated for background tasks to complete after the HTTP response is sent. Without this, Cloud Run will throttle CPU and background tasks may not execute.
 - The `--concurrency 1` setting ensures one request per instance, preventing interference with background task execution.
 
-**Step 3: Configure Environment Variables**
+**Step 4: Configure Environment Variables**
 
 Set non-sensitive environment variables:
 
@@ -331,7 +338,7 @@ gcloud run services update $SERVICE_ID \
   --set-env-vars "WEBHOOK_USER_ID=grafana_webhook,LOOKUP_WINDOW_SECONDS=3600,GITHUB_BASE_BRANCH=main,GIT_BASE_BRANCH=main,MONGODB_TRACE_DB_NAME=incident_copilot,MONGODB_COLL_TRACE_NAME=agent_traces"
 ```
 
-**Step 4: Set Up Secrets (Recommended for Sensitive Values)**
+**Step 5: Set Up Secrets (Recommended for Sensitive Values)**
 
 Create secrets in Secret Manager:
 
@@ -432,7 +439,7 @@ gcloud run services update $SERVICE_ID \
     WEBHOOK_API_KEY=webhook-api-key:latest
 ```
 
-**Step 5: Verify Deployment**
+**Step 6: Verify Deployment**
 
 ```bash
 export SERVICE_URL=$(gcloud run services describe $SERVICE_ID \
