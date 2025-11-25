@@ -5,6 +5,7 @@ setuptools==80.9.0
 uvicorn==0.38.0
 wheel==0.45.1
 google-adk
+google-genai==1.52.0
 httpx
 python-dotenv
 google-auth

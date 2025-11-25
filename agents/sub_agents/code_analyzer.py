@@ -141,6 +141,8 @@ STEPS:
    - Build query from actual error messages in logs.
    - ALWAYS include " repo:owner/repo" in the query string to scope search to the specific repository.
    - MANDATORY: You MUST include both owner and repo parameters AND include " repo:owner/repo" in the query string.
+   - SANITIZE QUERIES: Remove special characters like `(`, `)`, `[`, `]`, `{{`, `}}`, `/`, `\\`, `:`, `;` unless they are part of a file path or exact match string you are certain exists.
+   - KEEP QUERIES SIMPLE: Focus on unique keywords (variable names, function names, error codes) rather than full error messages. If an error message is long, select the most distinctive part.
 
 3. Use get_file_contents tool to retrieve file contents:
    - CRITICAL: Use the `owner` and `repo` values you extracted in Step 1.
